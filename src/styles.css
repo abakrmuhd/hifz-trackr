@@ -863,7 +863,8 @@ small {
 
 .detail-block {
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  grid-template-rows: auto auto;
+  align-items: start;
 }
 
 .detail-block > :not(.detail-mini-action) {
@@ -872,10 +873,13 @@ small {
 
 .detail-mini-action {
   grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: stretch;
-  min-width: 46px;
-  min-height: 100%;
+  grid-row: 2;
+  align-self: end;
+  justify-self: end;
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
   padding-inline: 0;
   font-size: 1.15rem;
   line-height: 1;
@@ -883,7 +887,8 @@ small {
 
 .detail-transition-row {
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-rows: auto auto;
+  align-items: start;
 }
 
 .detail-transition-copy {
@@ -894,7 +899,18 @@ small {
 
 .detail-block-head,
 .detail-transition-head {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.detail-block-head > :first-child,
+.detail-transition-head > :first-child {
+  min-width: 0;
+}
+
+.detail-transition-copy > .detail-metric-value-line {
+  grid-column: 1;
 }
 
 .detail-metric-label {
@@ -932,6 +948,7 @@ small {
 
 .detail-transition-row.empty {
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, .02), transparent 100%),
     color-mix(in srgb, var(--surface) 82%, var(--empty) 18%);
@@ -943,12 +960,10 @@ small {
 
 .detail-card {
   margin-top: 12px;
-  padding: 14px;
+  padding: 13px;
   border: 1px solid var(--line);
-  border-radius: calc(var(--radius) + 2px);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .03), transparent 100%),
-    var(--surface);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
 .detail-title {
