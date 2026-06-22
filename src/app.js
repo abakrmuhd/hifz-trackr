@@ -723,7 +723,7 @@ async function handleAction(event, el) {
   if (action === "finish-review") { review = null; goHome("progress"); return; }
   if (action === "export-json") exportJson();
   if (action === "reset-all") resetAll();
-  if (!["previous-page", "next-page"].includes(action)) render();
+  if (!["previous-page", "next-page", "decrement-ayah-detail", "decrement-transition-detail"].includes(action)) render();
 }
 
 async function moveTrack(direction, options = {}) {
@@ -872,9 +872,17 @@ async function mutateSpecificDetail(kind, delta) {
 function resetDetail() {
   if (!detailTarget) return;
   if (detailTarget.kind === "ayah") {
-    const count = getAyahCount(detailTarget.key);
+    const ayahCount = getAyahCount(detailTarget.key);
     state.ayahProgress[detailTarget.key] = { repetitionCount: 0 };
-    addEvent("reset", { ayahKey: detailTarget.key, delta: -count, page: route.page });
+    addEvent("reset", { ayahKey: detailTarget.key, delta: -ayahCount, page: route.page });
+
+    // In ayah detail, reset should clear both visible editable counts.
+    const incoming = resolveIncomingTransition(detailTarget.key);
+    if (incoming) {
+      const transitionCount = getTransitionCount(incoming.key);
+      state.transitionProgress[incoming.key] = { repetitionCount: 0 };
+      addEvent("reset", { transitionKey: incoming.key, delta: -transitionCount, page: route.page });
+    }
   } else {
     const count = getTransitionCount(detailTarget.key);
     state.transitionProgress[detailTarget.key] = { repetitionCount: 0 };
