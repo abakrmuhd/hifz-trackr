@@ -61,6 +61,45 @@ test("describeDetailTarget builds a stable no-incoming-transition fallback for f
   );
 
   assert.equal(detail.mode, "ayah");
+  assert.equal(detail.headerBookmarkLabel, "Bookmark ayah");
+  assert.deepEqual(detail.transition, {
+    available: false,
+    label: "Transition count",
+    message: "No incoming transition"
+  });
+});
+
+test("describeDetailTarget saturates mastered targets at the final milestone", () => {
+  const detail = describeDetailTarget(
+    { kind: "ayah", key: "2:256" },
+    {
+      settings,
+      getAyahCount: () => 41,
+      getTransitionCount: () => 0,
+      labelAyah: (key) => `Surah ${key}`,
+      labelTransition: () => "",
+      isAyahBookmarked: () => false,
+      resolveIncomingTransition: () => null
+    }
+  );
+
+  assert.equal(detail.ayah.target, 40);
+});
+
+test("describeDetailTarget treats a missing incoming-transition resolver as no incoming transition", () => {
+  const detail = describeDetailTarget(
+    { kind: "ayah", key: "3:1" },
+    {
+      settings,
+      getAyahCount: () => 7,
+      getTransitionCount: () => 0,
+      labelAyah: (key) => `Surah ${key}`,
+      labelTransition: () => "",
+      isAyahBookmarked: () => false
+    }
+  );
+
+  assert.equal(detail.mode, "ayah");
   assert.deepEqual(detail.transition, {
     available: false,
     label: "Transition count",

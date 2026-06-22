@@ -21,7 +21,9 @@ export function describeDetailTarget(detailTarget, options) {
 
   const ayahCount = options.getAyahCount(detailTarget.key);
   const ayahStrength = getStrengthClass(ayahCount, options.settings.ayahThresholds);
-  const incoming = options.resolveIncomingTransition(detailTarget.key);
+  const incoming = options.resolveIncomingTransition
+    ? options.resolveIncomingTransition(detailTarget.key)
+    : null;
   const bookmarked = options.isAyahBookmarked(detailTarget.key);
 
   return {
@@ -63,5 +65,5 @@ function buildTargetCount(count, thresholds) {
   if (count <= thresholds.weakMax) return thresholds.weakMax + 1;
   if (count <= thresholds.buildingMax) return thresholds.buildingMax + 1;
   if (count <= thresholds.strongMax) return thresholds.strongMax + 1;
-  return count;
+  return thresholds.strongMax + 1;
 }
