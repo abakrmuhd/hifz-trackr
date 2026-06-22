@@ -3,6 +3,7 @@ export const APP_DB_VERSION = 1;
 export const APP_STORE_NAME = "app-state";
 export const APP_STATE_KEY = "tap-hifz-app-state";
 export const LEGACY_LOCAL_STORAGE_KEY = "tap-hifz-state";
+export const INDEXED_DB_TIMEOUT_MS = 750;
 
 const cloneValue = globalThis.structuredClone
   ? (value) => globalThis.structuredClone(value)
@@ -44,6 +45,22 @@ function canUseLocalStorage() {
   return typeof localStorage !== "undefined";
 }
 
+function withTimeout(promise, timeoutMs, label) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
+}
+
 function openStateDb() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(APP_DB_NAME, APP_DB_VERSION);
@@ -53,53 +70,57 @@ function openStateDb() {
     });
     request.addEventListener("success", () => resolve(request.result));
     request.addEventListener("error", () => reject(request.error));
+    request.addEventListener("blocked", () => reject(new Error("IndexedDB open blocked")));
   });
 }
 
-function withStore(mode, task) {
+function withStoreRequest(mode, task, mapResult = (request) => request.result) {
   return openStateDb().then((db) => new Promise((resolve, reject) => {
     const transaction = db.transaction(APP_STORE_NAME, mode);
     const store = transaction.objectStore(APP_STORE_NAME);
-    let result;
+    const request = task(store);
+    let requestResult = null;
+    let requestError = null;
+
+    request.addEventListener("success", () => {
+      requestResult = mapResult(request);
+    });
+    request.addEventListener("error", () => {
+      requestError = request.error;
+    });
 
     transaction.addEventListener("complete", () => {
       db.close();
-      resolve(result);
+      if (requestError) {
+        reject(requestError);
+        return;
+      }
+      resolve(requestResult);
     });
     transaction.addEventListener("error", () => {
       db.close();
-      reject(transaction.error);
+      reject(transaction.error || requestError);
     });
     transaction.addEventListener("abort", () => {
       db.close();
-      reject(transaction.error);
+      reject(transaction.error || requestError);
     });
-
-    result = task(store);
   }));
 }
 
 async function readIndexedState() {
-  const request = await withStore("readonly", (store) => store.get(APP_STATE_KEY));
-  return new Promise((resolve, reject) => {
-    request.addEventListener("success", () => resolve(request.result || null));
-    request.addEventListener("error", () => reject(request.error));
-  });
+  return withStoreRequest("readonly", (store) => store.get(APP_STATE_KEY), (request) => request.result || null);
 }
 
 async function writeIndexedState(state) {
-  const request = await withStore("readwrite", (store) => store.put(state, APP_STATE_KEY));
-  return new Promise((resolve, reject) => {
-    request.addEventListener("success", () => resolve());
-    request.addEventListener("error", () => reject(request.error));
-  });
+  await withStoreRequest("readwrite", (store) => store.put(state, APP_STATE_KEY), () => undefined);
 }
 
 export async function loadPersistedState(defaultState) {
   let indexedState = null;
   if (canUseIndexedDb()) {
     try {
-      indexedState = await readIndexedState();
+      indexedState = await withTimeout(readIndexedState(), INDEXED_DB_TIMEOUT_MS, "IndexedDB read");
     } catch {
       indexedState = null;
     }
@@ -110,7 +131,7 @@ export async function loadPersistedState(defaultState) {
 
   if (selected.source === LEGACY_LOCAL_STORAGE_KEY && canUseIndexedDb()) {
     try {
-      await writeIndexedState(selected.state);
+      await withTimeout(writeIndexedState(selected.state), INDEXED_DB_TIMEOUT_MS, "IndexedDB write");
       if (canUseLocalStorage()) localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY);
     } catch {
       if (canUseLocalStorage()) {
@@ -125,7 +146,7 @@ export async function loadPersistedState(defaultState) {
 export async function savePersistedState(state) {
   if (canUseIndexedDb()) {
     try {
-      await writeIndexedState(state);
+      await withTimeout(writeIndexedState(state), INDEXED_DB_TIMEOUT_MS, "IndexedDB write");
       return;
     } catch {
       // Fall back to localStorage below.

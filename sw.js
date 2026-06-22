@@ -20,13 +20,30 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  const shouldRefreshFirst = url.origin === self.location.origin
+    && (url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/sw.js" || url.pathname.startsWith("/src/"));
+
+  if (shouldRefreshFirst) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, response.clone()));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((response) => {
         const copy = response.clone();
-        if (response.ok && new URL(request.url).origin === self.location.origin) {
+        if (response.ok && url.origin === self.location.origin) {
           caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
         }
         return response;

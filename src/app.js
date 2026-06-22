@@ -15,18 +15,30 @@ import {
   loadPersistedState,
   mergeStoredState,
   savePersistedState
-} from "./data/storage.js";
+} from "./data/storage.js?v=2";
+import { shouldRegisterServiceWorker } from "./data/runtime-environment.js";
 import {
-  buildRevealSurfaceState,
-  clampRevealOffset,
-  getRevealDirection,
-  getRevealPage,
-  shouldCommitSwipe
-} from "./reader/swipe-reveal.js";
+  buildTrackPages,
+  clampTrackOffset,
+  getTrackDirection,
+  getTrackTargetPage,
+  shouldCommitTrackMove
+} from "./reader/swipe-reveal.js?v=2026-06-22-page-turn-fill";
 
 const PAGE_COUNT = 604;
 const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
 const app = document.querySelector("#app");
+const setBootStatus = (label) => {
+  if (!app) return;
+  app.innerHTML = `
+    <main class="app-shell home-shell">
+      <div class="detail-card">
+        <div class="detail-title"><span>Starting Tap Hifz</span></div>
+        <p class="empty-state">${escapeHtml(label)}</p>
+      </div>
+    </main>
+  `;
+};
 const cloneValue = globalThis.structuredClone
   ? (value) => globalThis.structuredClone(value)
   : (value) => JSON.parse(JSON.stringify(value));
@@ -57,8 +69,11 @@ const defaultState = {
 
 let state = cloneValue(defaultState);
 let route = { screen: "home", tab: "progress", page: 1, target: null };
-let currentPageData = null;
-let revealedPageData = null;
+let trackPages = {
+  previous: null,
+  current: null,
+  next: null
+};
 let metadata = null;
 let selectedJuz = 1;
 let pendingTap = null;
@@ -69,18 +84,22 @@ let review = null;
 let swipeStart = null;
 let suppressClickUntil = 0;
 let pageNavigationInFlight = false;
-let revealState = {
+let trackState = {
   direction: null,
-  offset: 0,
-  dragging: false
+  dragging: false,
+  offset: 0
 };
-let prefetchedPages = new Map();
+let pageCache = new Map();
+let surahVerseCounts = new Map();
 
 const SWIPE_COMMIT_DISTANCE = 60;
 const SWIPE_CANCEL_VERTICAL_LIMIT = 70;
 const SWIPE_DRAG_START = 8;
 const PAGE_TURN_DURATION = 220;
 const PAGE_TURN_EASING = "cubic-bezier(.2, .8, .2, 1)";
+const TRACK_NEXT_TRANSFORM = "0%";
+const TRACK_CURRENT_TRANSFORM = "-33.333333%";
+const TRACK_PREVIOUS_TRANSFORM = "-66.666667%";
 
 const icons = {
   back: `<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`,
@@ -97,23 +116,30 @@ const icons = {
 init().catch(showFatalError);
 
 async function init() {
+  setBootStatus("Loading saved state...");
   state = await loadState();
+  setBootStatus("Loading metadata...");
   document.documentElement.dataset.theme = state.settings.theme;
   const [mushafData, navigationData] = await Promise.all([
     fetchJson("/src/data/mushaf-metadata.json"),
     fetchJson("/src/data/navigation-metadata.json")
   ]);
+  setBootStatus("Loading first page...");
   metadata = {
     ...mushafData,
     surahs: navigationData.surahs,
     juz: navigationData.juz
   };
-  currentPageData = await fetchPage(1);
-  revealedPageData = null;
+  surahVerseCounts = buildSurahVerseCounts(metadata.pages);
+  const initialTrack = await loadTrackPages(1);
+  trackPages = initialTrack.data;
+  setBootStatus("Binding events...");
   bindGlobalEvents();
-  warmNeighborPages(1).catch(() => {});
+  setBootStatus("Rendering...");
   render();
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { type: "module" }).catch(() => {});
+  if ("serviceWorker" in navigator && shouldRegisterServiceWorker(globalThis.location?.hostname || "")) {
+    navigator.serviceWorker.register("/sw.js", { type: "module" }).catch(() => {});
+  }
 }
 
 async function loadState() {
@@ -131,36 +157,43 @@ async function fetchPage(page) {
   return response.json();
 }
 
+async function getPageData(page) {
+  if (!page) return null;
+  if (pageCache.has(page)) return pageCache.get(page);
+  const data = await fetchPage(page);
+  pageCache.set(page, data);
+  return data;
+}
+
+async function loadTrackPages(currentPage) {
+  const pages = buildTrackPages({ currentPage, pageCount: PAGE_COUNT });
+  const [previous, current, next] = await Promise.all([
+    pages.previous ? getPageData(pages.previous).catch(() => null) : Promise.resolve(null),
+    getPageData(pages.current),
+    pages.next ? getPageData(pages.next).catch(() => null) : Promise.resolve(null)
+  ]);
+  return {
+    numbers: pages,
+    data: { previous, current, next }
+  };
+}
+
 async function fetchJson(path) {
   const response = await fetch(path);
   if (!response.ok) throw new Error(`Missing JSON resource ${path}`);
   return response.json();
 }
 
-async function prefetchPage(page) {
-  if (page < 1 || page > PAGE_COUNT) return null;
-  if (prefetchedPages.has(page)) return prefetchedPages.get(page);
-  const data = await fetchPage(page);
-  prefetchedPages.set(page, data);
-  return data;
-}
-
-async function warmNeighborPages(page) {
-  const targets = [page - 1, page + 1].filter((item) => item >= 1 && item <= PAGE_COUNT);
-  await Promise.all(targets.map((target) => prefetchPage(target).catch(() => null)));
-}
-
 async function openPage(page, options = {}) {
   route = { screen: "reading", tab: route.tab, page: clampPage(page), target: options.target || null };
-  currentPageData = prefetchedPages.get(route.page) || await fetchPage(route.page);
-  revealState = { direction: null, offset: 0, dragging: false };
-  revealedPageData = null;
+  const nextTrack = await loadTrackPages(route.page);
+  trackPages = nextTrack.data;
+  trackState = { direction: null, dragging: false, offset: 0 };
   if (!options.silent) {
     state.recentPages = [route.page, ...state.recentPages.filter((item) => item !== route.page)].slice(0, 20);
     await saveState();
   }
   render();
-  warmNeighborPages(route.page).catch(() => {});
 }
 
 function goHome(tab = route.tab || "progress") {
@@ -252,24 +285,66 @@ function renderQueueItem(item) {
 function renderSurahs() {
   const entries = [
     ...metadata.surahs.map((surah) => ({
-      kind: "Surah",
+      kind: "surah",
+      number: surah.number,
       page: surah.startPage,
-      title: surah.arabicName,
-      sub: `${surah.number}. ${surah.transliteratedName || `Surah ${surah.number}`}`
+      title: surah.transliteratedName || surah.englishName || `Surah ${surah.number}`,
+      sub: surah.englishName || buildSurahSubtitle(surah)
     })),
-    ...metadata.juz.map((juz) => ({ kind: "Juz", page: juz.startPage, title: `Juz ${juz.number}`, sub: "" }))
-  ].sort((a, b) => a.page - b.page || (a.kind === "Juz" ? -1 : 1));
+    ...metadata.juz.map((juz) => ({ kind: "juz", number: juz.number, page: juz.startPage, title: `Juz ${juz.number}` }))
+  ].sort((a, b) => a.page - b.page || (a.kind === "juz" ? -1 : 1));
   return `
-    <h2>Mushaf Order</h2>
     <div class="queue-list">
-      ${entries.map((entry) => `
-        <button class="list-row" data-page="${entry.page}">
-          <span><strong>${entry.title}</strong><small>${entry.sub ? `${entry.sub}, ` : ""}Page ${entry.page}</small></span>
-          <span class="type-pill">${entry.kind}</span>
+      ${entries.map((entry) => entry.kind === "juz" ? `
+        <button class="list-row list-row-juz" data-page="${entry.page}">
+          <strong>${entry.title}</strong>
+        </button>
+      ` : `
+        <button class="list-row list-row-surah" data-page="${entry.page}">
+          <span class="surah-row-number">${entry.number}</span>
+          <span class="surah-row-copy">
+            <strong>${entry.title}</strong>
+            <small>${entry.sub}</small>
+          </span>
+          <span class="surah-row-page" aria-label="Page ${entry.page}">${entry.page}</span>
         </button>
       `).join("")}
     </div>
   `;
+}
+
+function buildSurahVerseCounts(pages) {
+  const counts = new Map();
+
+  for (const pageData of Object.values(pages || {})) {
+    for (const line of pageData.lines || []) {
+      if (!line.verseRange) continue;
+      const [start, end] = line.verseRange.split("-");
+      const [startSurah, startAyah] = start.split(":").map(Number);
+      const [endSurah, endAyah] = end.split(":").map(Number);
+      updateSurahVerseCount(counts, startSurah, startAyah);
+      updateSurahVerseCount(counts, endSurah, endAyah);
+    }
+  }
+
+  return counts;
+}
+
+function updateSurahVerseCount(counts, surahNumber, ayahNumber) {
+  if (!Number.isFinite(surahNumber) || !Number.isFinite(ayahNumber)) return;
+  counts.set(surahNumber, Math.max(counts.get(surahNumber) || 0, ayahNumber));
+}
+
+function buildSurahSubtitle(surah) {
+  const parts = [];
+  if (surah.transliteratedName) parts.push(surah.transliteratedName);
+  const verseCount = surahVerseCounts.get(surah.number);
+  if (verseCount) parts.push(formatVerseLabel(verseCount));
+  return parts.join(" - ");
+}
+
+function formatVerseLabel(count) {
+  return `${count} ${count === 1 ? "verse" : "verses"}`;
 }
 
 function renderBookmarks() {
@@ -295,14 +370,9 @@ function renderBookmarks() {
 }
 
 function renderReading() {
-  const page = currentPageData;
+  const pageNumbers = buildTrackPages({ currentPage: route.page, pageCount: PAGE_COUNT });
   const pageBookmarked = state.pageBookmarks.includes(route.page);
   const activeTarget = resolveReaderTarget();
-  const surfaces = buildRevealSurfaceState({
-    currentPage: route.page,
-    direction: revealState.direction,
-    pageCount: PAGE_COUNT
-  });
   return `
     <main class="app-shell reader-shell">
       <header class="reading-top">
@@ -316,8 +386,11 @@ function renderReading() {
       <button class="sr-only" data-action="previous-page">Previous page</button>
       <button class="sr-only" data-action="next-page">Next page</button>
       <section class="page-shell ${route.page % 2 ? "odd" : "even"}" aria-label="Mushaf page ${route.page}">
-        ${renderPageSurface(revealedPageData, surfaces.revealedPage, null, "revealed-page", true)}
-        ${renderPageSurface(page, surfaces.activePage, activeTarget, "active-page")}
+        <div class="page-track" data-track-direction="${trackState.direction || ""}">
+          ${renderPageSlot(trackPages.next, pageNumbers.next, "next", true)}
+          ${renderPageSlot(trackPages.current, route.page, "current", false, activeTarget)}
+          ${renderPageSlot(trackPages.previous, pageNumbers.previous, "previous", true)}
+        </div>
       </section>
       <p class="swipe-hint">Swipe left for previous page. Swipe right for next page.</p>
       ${undoVisible ? `<button class="floating-undo" data-action="undo" aria-label="Undo last count">${icons.undo}</button>` : ""}
@@ -326,22 +399,25 @@ function renderReading() {
   `;
 }
 
-function renderPageSurface(pageData, pageNumber, activeTarget, className, inert = false) {
-  if (!pageData || !pageNumber) return "";
+function renderPageSlot(pageData, pageNumber, slotName, inert = false, activeTarget = null) {
+  if (!pageNumber || !pageData) {
+    return `<div class="page-slot ${slotName} empty" aria-hidden="true"></div>`;
+  }
   const previousAyahMap = buildPreviousAyahMap(pageData);
-  const attributes = [
-    `class="page-surface ${className}"`,
-    inert ? `aria-hidden="true"` : ""
-  ].filter(Boolean).join(" ");
-  const lines = pageData?.lines?.map((line) => renderLine(line, activeTarget, { inert, pageNumber, previousAyahMap })).join("") || "";
-  return `<div ${attributes}><div class="mushaf" dir="rtl">${lines}</div></div>`;
+  const lines = pageData.lines.map((line) => renderLine(line, activeTarget, { inert, pageNumber, previousAyahMap })).join("");
+  const parity = pageNumber % 2 ? "odd" : "even";
+  return `
+    <div class="page-slot ${slotName} ${parity}" ${inert ? 'aria-hidden="true"' : ""}>
+      <div class="mushaf" dir="rtl">${lines}</div>
+    </div>
+  `;
 }
 
 function renderLine(line, activeTarget, options = {}) {
   if (line.type === "surah-header") return `<div class="surah-header">${decodeText(line.text)}</div>`;
-  if (line.type === "basmala") return `<div class="basmala">${decodeText(line.qpcV2 || line.text || "")}</div>`;
+  if (line.type === "basmala") return `<div class="basmala">${decodeText(line.text || line.qpcV2 || "")}</div>`;
   const words = line.words || [];
-  const fit = words.length > 10 ? "fit-84" : words.length > 8 ? "fit-89" : words.length > 6 ? "fit-93" : "";
+  const fit = words.length > 13 ? "fit-72" : words.length > 11 ? "fit-78" : words.length > 9 ? "fit-84" : words.length > 7 ? "fit-89" : words.length > 6 ? "fit-93" : "";
   const parts = words.map((word) => renderWord(word, activeTarget, options)).join("");
   const unjustify = (options.pageNumber || route.page) <= 2 ? "unjustified" : "";
   return `<div class="mushaf-line ${fit} ${unjustify} ${words.length <= 3 ? "short" : ""}">${parts}</div>`;
@@ -456,8 +532,8 @@ function renderSettings() {
 function bindGlobalEvents() {
   window.addEventListener("keydown", (event) => {
     if (route.screen !== "reading") return;
-    if (event.key === "ArrowLeft") navigatePage(-1);
-    if (event.key === "ArrowRight") navigatePage(1);
+    if (event.key === "ArrowLeft") moveTrack("next");
+    if (event.key === "ArrowRight") moveTrack("previous");
   });
 }
 
@@ -472,13 +548,21 @@ function bindScreenEvents() {
   app.querySelectorAll("[data-remove-page-bookmark]").forEach((button) => button.addEventListener("click", () => removePageBookmark(Number(button.dataset.removePageBookmark))));
   app.querySelectorAll("[data-remove-ayah-bookmark]").forEach((button) => button.addEventListener("click", () => removeAyahBookmark(button.dataset.removeAyahBookmark)));
 
-  app.querySelectorAll("button.ayah-mark[data-ayah]").forEach((button) => {
+  app.querySelectorAll(".page-slot.current button.ayah-mark[data-ayah]").forEach((button) => {
     button.addEventListener("click", () => handleAyahTap(button.dataset.ayah));
     bindLongPress(button, () => { detailTarget = { kind: "ayah", key: button.dataset.ayah, page: Number(button.dataset.page) }; render(); });
   });
 
+  app.querySelectorAll(".page-slot.current button.transition-mark[data-transition]").forEach((button) => {
+    bindLongPress(button, () => {
+      detailTarget = { kind: "transition", key: button.dataset.transition, page: Number(button.dataset.page) };
+      render();
+    });
+  });
+
   const pageShell = app.querySelector(".page-shell");
-  if (pageShell) {
+  const pageTrack = app.querySelector(".page-track");
+  if (pageShell && pageTrack) {
     pageShell.addEventListener("click", (event) => {
       if (Date.now() < suppressClickUntil) {
         event.preventDefault();
@@ -494,27 +578,21 @@ function bindScreenEvents() {
         offset: 0,
         dragging: false
       };
-      revealState = { direction: null, offset: 0, dragging: false };
+      trackState = { direction: null, dragging: false, offset: 0 };
       pageShell.setPointerCapture?.(event.pointerId);
     });
     pageShell.addEventListener("pointermove", async (event) => {
       if (!swipeStart || pageNavigationInFlight) return;
       const dx = event.clientX - swipeStart.x;
       const dy = event.clientY - swipeStart.y;
-      const direction = getRevealDirection({ dx, dy, startThreshold: SWIPE_DRAG_START });
+      const direction = getTrackDirection({ dx, dy, startThreshold: SWIPE_DRAG_START });
       if (!direction) return;
-      const revealPage = getRevealPage({ currentPage: route.page, direction, pageCount: PAGE_COUNT });
-      if (!revealPage) return;
-      if (direction !== revealState.direction || !revealedPageData) {
-        revealedPageData = await prefetchPage(revealPage).catch(() => null);
-        revealState.direction = direction;
-        render();
-      }
+      const targetPage = getTrackTargetPage({ currentPage: route.page, direction, pageCount: PAGE_COUNT });
+      if (!targetPage) return;
       swipeStart.dragging = true;
-      swipeStart.offset = clampRevealOffset(dx, { maxOffset: 120, dragRatio: 0.45 });
-      revealState.offset = swipeStart.offset;
-      revealState.dragging = true;
-      applyRevealVisualState();
+      swipeStart.offset = clampTrackOffset(dx, { maxOffset: pageShell.clientWidth, dragRatio: 1 });
+      trackState = { direction, dragging: true, offset: swipeStart.offset };
+      applyTrackState();
       event.preventDefault();
     });
     pageShell.addEventListener("pointerup", (event) => {
@@ -526,15 +604,15 @@ function bindScreenEvents() {
       swipeStart = null;
       pageShell.releasePointerCapture?.(event.pointerId);
       if (didDrag) suppressClickUntil = Date.now() + 350;
-      if (revealState.direction && shouldCommitSwipe({ dx, dy, commitDistance: SWIPE_COMMIT_DISTANCE, verticalLimit: SWIPE_CANCEL_VERTICAL_LIMIT })) {
-        navigatePage(revealState.direction === "next" ? 1 : -1, { dragOffset, useReveal: true });
+      if (trackState.direction && shouldCommitTrackMove({ dx, dy, commitDistance: SWIPE_COMMIT_DISTANCE, verticalLimit: SWIPE_CANCEL_VERTICAL_LIMIT })) {
+        moveTrack(trackState.direction, { dragOffset });
         return;
       }
-      resetRevealState(true);
+      resetTrackState(true);
     });
     pageShell.addEventListener("pointercancel", () => {
       swipeStart = null;
-      resetRevealState(true);
+      resetTrackState(true);
     });
   }
 
@@ -575,8 +653,8 @@ async function handleAction(event, el) {
   if (action === "close-settings") settingsOpen = false;
   if (action === "close-modal") detailTarget = null;
   if (action === "home") goHome();
-  if (action === "previous-page") navigatePage(-1);
-  if (action === "next-page") navigatePage(1);
+  if (action === "previous-page") moveTrack("previous");
+  if (action === "next-page") moveTrack("next");
   if (action === "toggle-page-bookmark") togglePageBookmark();
   if (action === "undo") undoLast();
   if (action === "decrement-detail") mutateDetail(-1);
@@ -591,52 +669,47 @@ async function handleAction(event, el) {
   if (!["previous-page", "next-page"].includes(action)) render();
 }
 
-async function navigatePage(delta, options = {}) {
+async function moveTrack(direction, options = {}) {
   if (pageNavigationInFlight) return;
-  const next = route.page + delta;
-  const activeSurface = app.querySelector(".active-page");
-  if (next < 1 || next > PAGE_COUNT) {
-    activeSurface?.animate([{ transform: "translateX(0)" }, { transform: `translateX(${delta > 0 ? 12 : -12}px)` }, { transform: "translateX(0)" }], { duration: 180 });
-    if (activeSurface) activeSurface.style.transform = "";
+  const targetPage = getTrackTargetPage({ currentPage: route.page, direction, pageCount: PAGE_COUNT });
+  const pageTrack = app.querySelector(".page-track");
+  if (!targetPage) {
+    pageTrack?.animate(
+      [
+        { transform: `translateX(${TRACK_CURRENT_TRANSFORM})` },
+        { transform: `translateX(calc(${TRACK_CURRENT_TRANSFORM} + ${direction === "next" ? "12px" : "-12px"}))` },
+        { transform: `translateX(${TRACK_CURRENT_TRANSFORM})` }
+      ],
+      { duration: 180 }
+    );
     if (navigator.vibrate && state.settings.vibration !== false) navigator.vibrate(12);
     return;
   }
+
   pageNavigationInFlight = true;
   try {
-    const direction = delta > 0 ? "next" : "previous";
-    const nextPageData = prefetchedPages.get(next) || await prefetchPage(next);
-    revealState = { direction, offset: Number(options.dragOffset) || 0, dragging: false };
-    revealedPageData = nextPageData;
-    render();
-    const outgoingSurface = app.querySelector(".active-page");
-    if (outgoingSurface) {
-      const dragOffset = Number(options.dragOffset) || 0;
-      await outgoingSurface.animate(
+    const slotShift = direction === "next" ? TRACK_NEXT_TRANSFORM : TRACK_PREVIOUS_TRANSFORM;
+    const dragOffset = Number(options.dragOffset) || 0;
+    trackState = { direction, dragging: false, offset: dragOffset };
+    applyTrackState();
+    if (pageTrack) {
+      await pageTrack.animate(
         [
-          { transform: `translateX(${dragOffset}px)`, opacity: 1 },
-          { transform: `translateX(${delta > 0 ? 100 : -100}%)`, opacity: .72 }
+          { transform: `translateX(calc(${TRACK_CURRENT_TRANSFORM} + ${dragOffset}px))` },
+          { transform: `translateX(${slotShift})` }
         ],
-        { duration: PAGE_TURN_DURATION, easing: PAGE_TURN_EASING }
+        { duration: PAGE_TURN_DURATION, easing: PAGE_TURN_EASING, fill: "forwards" }
       ).finished;
-      outgoingSurface.style.transform = "";
     }
 
-    route = { screen: "reading", tab: route.tab, page: clampPage(next), target: null };
-    currentPageData = nextPageData;
-    revealState = { direction: null, offset: 0, dragging: false };
-    revealedPageData = null;
+    route = { screen: "reading", tab: route.tab, page: targetPage, target: null };
+    const loaded = await loadTrackPages(targetPage);
+    trackPages = loaded.data;
+    trackState = { direction: null, dragging: false, offset: 0 };
     state.recentPages = [route.page, ...state.recentPages.filter((item) => item !== route.page)].slice(0, 20);
     await saveState();
     render();
-    warmNeighborPages(route.page).catch(() => {});
-
-    app.querySelector(".active-page")?.animate(
-      [
-        { transform: `translateX(${delta > 0 ? -100 : 100}%)`, opacity: .72 },
-        { transform: "translateX(0)", opacity: 1 }
-      ],
-      { duration: PAGE_TURN_DURATION, easing: PAGE_TURN_EASING }
-    );
+    applyTrackState();
   } finally {
     pageNavigationInFlight = false;
   }
@@ -843,7 +916,7 @@ function previousVisibleAyah(key) {
 
 function visibleAyahKeys() {
   const keys = [];
-  currentPageData?.lines?.forEach((line) => {
+  trackPages.current?.lines?.forEach((line) => {
     line.words?.forEach((word) => {
       const text = decodeText(word.word);
       if (/[٠-٩]+$/.test(text)) {
@@ -886,31 +959,30 @@ function buildPreviousAyahMap(pageData) {
   return previousByKey;
 }
 
-function applyRevealVisualState() {
+function applyTrackState() {
   const pageShell = app.querySelector(".page-shell");
-  const activeSurface = app.querySelector(".active-page");
-  if (!pageShell || !activeSurface) return;
-  if (revealState.direction) {
-    pageShell.dataset.revealDirection = revealState.direction;
-  } else {
-    delete pageShell.dataset.revealDirection;
-  }
-  pageShell.classList.toggle("dragging", revealState.dragging);
-  activeSurface.style.transform = revealState.direction ? `translateX(${revealState.offset}px)` : "";
+  const pageTrack = app.querySelector(".page-track");
+  if (!pageShell || !pageTrack) return;
+  pageShell.classList.toggle("dragging", trackState.dragging);
+  pageTrack.classList.toggle("dragging", trackState.dragging);
+  pageTrack.dataset.trackDirection = trackState.direction || "";
+  pageTrack.style.setProperty("--track-offset", trackState.direction ? `${trackState.offset}px` : "0px");
 }
 
-function resetRevealState(animateBack = false) {
-  const activeSurface = app.querySelector(".active-page");
-  const offset = revealState.offset;
-  revealState = { direction: null, offset: 0, dragging: false };
-  revealedPageData = null;
-  if (animateBack && activeSurface && offset) {
-    activeSurface.animate(
-      [{ transform: `translateX(${offset}px)` }, { transform: "translateX(0)" }],
+function resetTrackState(animateBack = false) {
+  const pageTrack = app.querySelector(".page-track");
+  const offset = trackState.offset;
+  trackState = { direction: null, dragging: false, offset: 0 };
+  if (animateBack && pageTrack && offset) {
+    pageTrack.animate(
+      [
+        { transform: `translateX(calc(${TRACK_CURRENT_TRANSFORM} + ${offset}px))` },
+        { transform: `translateX(${TRACK_CURRENT_TRANSFORM})` }
+      ],
       { duration: 160, easing: PAGE_TURN_EASING }
     );
   }
-  render();
+  applyTrackState();
 }
 
 function getAyahCount(key) {

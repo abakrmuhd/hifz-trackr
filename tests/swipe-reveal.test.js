@@ -1,71 +1,71 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildRevealSurfaceState,
-  clampRevealOffset,
-  getRevealDirection,
-  getRevealPage,
-  getTask2RevealDirection,
-  shouldCommitSwipe
+  buildTrackPages,
+  clampTrackOffset,
+  getTrackDirection,
+  getTrackTargetPage,
+  shouldCommitTrackMove
 } from "../src/reader/swipe-reveal.js";
 
-test("getRevealDirection maps right drags to next and left drags to previous", () => {
-  assert.equal(getRevealDirection({ dx: 72, dy: 12, startThreshold: 8 }), "next");
-  assert.equal(getRevealDirection({ dx: -72, dy: 12, startThreshold: 8 }), "previous");
+test("getTrackDirection maps left drags to previous and right drags to next", () => {
+  assert.equal(getTrackDirection({ dx: -72, dy: 12, startThreshold: 8 }), "previous");
+  assert.equal(getTrackDirection({ dx: 72, dy: 12, startThreshold: 8 }), "next");
 });
 
-test("getRevealDirection rejects mostly vertical drags", () => {
-  assert.equal(getRevealDirection({ dx: 24, dy: 60, startThreshold: 8 }), null);
+test("getTrackDirection treats equality and vertical drags as non-drags", () => {
+  assert.equal(getTrackDirection({ dx: 8, dy: 0, startThreshold: 8 }), null);
+  assert.equal(getTrackDirection({ dx: 24, dy: 24, startThreshold: 8 }), null);
+  assert.equal(getTrackDirection({ dx: 24, dy: 60, startThreshold: 8 }), null);
 });
 
-test("getRevealDirection and shouldCommitSwipe treat equality as non-commit", () => {
-  assert.equal(getRevealDirection({ dx: 8, dy: 0, startThreshold: 8 }), null);
-  assert.equal(getRevealDirection({ dx: 24, dy: 24, startThreshold: 8 }), null);
-  assert.equal(shouldCommitSwipe({ dx: 60, dy: 30, commitDistance: 60, verticalLimit: 70 }), false);
-  assert.equal(shouldCommitSwipe({ dx: 90, dy: 70, commitDistance: 60, verticalLimit: 70 }), false);
+test("shouldCommitTrackMove uses strict horizontal and vertical thresholds", () => {
+  assert.equal(shouldCommitTrackMove({ dx: 61, dy: 30, commitDistance: 60, verticalLimit: 70 }), true);
+  assert.equal(shouldCommitTrackMove({ dx: 60, dy: 30, commitDistance: 60, verticalLimit: 70 }), false);
+  assert.equal(shouldCommitTrackMove({ dx: 90, dy: 70, commitDistance: 60, verticalLimit: 70 }), false);
 });
 
-test("shouldCommitSwipe uses horizontal threshold and vertical limit", () => {
-  assert.equal(shouldCommitSwipe({ dx: 61, dy: 30, commitDistance: 60, verticalLimit: 70 }), true);
-  assert.equal(shouldCommitSwipe({ dx: 59, dy: 30, commitDistance: 60, verticalLimit: 70 }), false);
-  assert.equal(shouldCommitSwipe({ dx: 90, dy: 80, commitDistance: 60, verticalLimit: 70 }), false);
+test("clampTrackOffset damps large drags", () => {
+  assert.equal(clampTrackOffset(40, { maxOffset: 120, dragRatio: 0.45 }), 18);
+  assert.equal(clampTrackOffset(400, { maxOffset: 120, dragRatio: 0.45 }), 120);
+  assert.equal(clampTrackOffset(-400, { maxOffset: 120, dragRatio: 0.45 }), -120);
 });
 
-test("clampRevealOffset damps large drags", () => {
-  assert.equal(clampRevealOffset(40, { maxOffset: 120, dragRatio: 0.45 }), 18);
-  assert.equal(clampRevealOffset(400, { maxOffset: 120, dragRatio: 0.45 }), 120);
-  assert.equal(clampRevealOffset(-400, { maxOffset: 120, dragRatio: 0.45 }), -120);
+test("getTrackTargetPage honors boundaries", () => {
+  assert.equal(getTrackTargetPage({ currentPage: 12, direction: "next", pageCount: 604 }), 13);
+  assert.equal(getTrackTargetPage({ currentPage: 12, direction: "previous", pageCount: 604 }), 11);
+  assert.equal(getTrackTargetPage({ currentPage: 604, direction: "next", pageCount: 604 }), null);
+  assert.equal(getTrackTargetPage({ currentPage: 1, direction: "previous", pageCount: 604 }), null);
 });
 
-test("getRevealPage honors app navigation mapping and boundaries", () => {
-  assert.equal(getRevealPage({ currentPage: 12, direction: "next", pageCount: 604 }), 13);
-  assert.equal(getRevealPage({ currentPage: 12, direction: "previous", pageCount: 604 }), 11);
-  assert.equal(getRevealPage({ currentPage: 604, direction: "next", pageCount: 604 }), null);
-  assert.equal(getRevealPage({ currentPage: 1, direction: "previous", pageCount: 604 }), null);
+test("getTrackTargetPage returns the committed target from the current page", () => {
+  assert.equal(getTrackTargetPage({ currentPage: 20, direction: "next", pageCount: 604 }), 21);
+  assert.equal(getTrackTargetPage({ currentPage: 20, direction: "previous", pageCount: 604 }), 19);
 });
 
-test("buildRevealSurfaceState returns active and revealed page numbers", () => {
+test("buildTrackPages returns previous current next slots", () => {
   assert.deepEqual(
-    buildRevealSurfaceState({ currentPage: 20, direction: "next", pageCount: 604 }),
-    { activePage: 20, revealedPage: 21 }
+    buildTrackPages({ currentPage: 20, pageCount: 604 }),
+    { previous: 19, current: 20, next: 21 }
   );
   assert.deepEqual(
-    buildRevealSurfaceState({ currentPage: 1, direction: "previous", pageCount: 604 }),
-    { activePage: 1, revealedPage: null }
+    buildTrackPages({ currentPage: 1, pageCount: 604 }),
+    { previous: null, current: 1, next: 2 }
   );
-});
-
-test("getTask2RevealDirection follows navigation direction before boundary defaults", () => {
-  assert.equal(getTask2RevealDirection({ currentPage: 20, pageCount: 604, navigationDelta: 1 }), "next");
-  assert.equal(getTask2RevealDirection({ currentPage: 20, pageCount: 604, navigationDelta: -1 }), "previous");
-  assert.equal(getTask2RevealDirection({ currentPage: 20, pageCount: 604, navigationDelta: 0 }), "next");
-  assert.equal(getTask2RevealDirection({ currentPage: 604, pageCount: 604, navigationDelta: 0 }), "previous");
-});
-
-test("Task 2 reveal surface scaffolding can target the previous page after backward navigation", () => {
-  const direction = getTask2RevealDirection({ currentPage: 200, pageCount: 604, navigationDelta: -1 });
   assert.deepEqual(
-    buildRevealSurfaceState({ currentPage: 200, direction, pageCount: 604 }),
-    { activePage: 200, revealedPage: 199 }
+    buildTrackPages({ currentPage: 604, pageCount: 604 }),
+    { previous: 603, current: 604, next: null }
   );
+});
+
+test("buildTrackPages keeps the current page centered after a move", () => {
+  const afterNext = buildTrackPages({ currentPage: 21, pageCount: 604 });
+  const afterPrevious = buildTrackPages({ currentPage: 19, pageCount: 604 });
+  assert.deepEqual(afterNext, { previous: 20, current: 21, next: 22 });
+  assert.deepEqual(afterPrevious, { previous: 18, current: 19, next: 20 });
+});
+
+test("buildTrackPages leaves missing side slots null at boundaries", () => {
+  assert.deepEqual(buildTrackPages({ currentPage: 1, pageCount: 604 }), { previous: null, current: 1, next: 2 });
+  assert.deepEqual(buildTrackPages({ currentPage: 604, pageCount: 604 }), { previous: 603, current: 604, next: null });
 });

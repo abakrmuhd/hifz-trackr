@@ -1,33 +1,28 @@
-export function getRevealDirection({ dx, dy, startThreshold }) {
+export function getTrackDirection({ dx, dy, startThreshold }) {
   if (Math.abs(dx) <= startThreshold) return null;
   if (Math.abs(dx) <= Math.abs(dy)) return null;
-  return dx > 0 ? "next" : "previous";
+  return dx < 0 ? "previous" : "next";
 }
 
-export function shouldCommitSwipe({ dx, dy, commitDistance, verticalLimit }) {
+export function shouldCommitTrackMove({ dx, dy, commitDistance, verticalLimit }) {
   return Math.abs(dx) > commitDistance && Math.abs(dy) < verticalLimit;
 }
 
-export function clampRevealOffset(dx, { maxOffset, dragRatio }) {
+export function clampTrackOffset(dx, { maxOffset, dragRatio }) {
   const scaled = dx * dragRatio;
   return Math.max(-maxOffset, Math.min(maxOffset, scaled));
 }
 
-export function getRevealPage({ currentPage, direction, pageCount }) {
+export function getTrackTargetPage({ currentPage, direction, pageCount }) {
   if (direction === "next") return currentPage < pageCount ? currentPage + 1 : null;
   if (direction === "previous") return currentPage > 1 ? currentPage - 1 : null;
   return null;
 }
 
-export function getTask2RevealDirection({ currentPage, pageCount, navigationDelta = 0 }) {
-  if (navigationDelta > 0) return "next";
-  if (navigationDelta < 0) return "previous";
-  return currentPage < pageCount ? "next" : "previous";
-}
-
-export function buildRevealSurfaceState({ currentPage, direction, pageCount }) {
+export function buildTrackPages({ currentPage, pageCount }) {
   return {
-    activePage: currentPage,
-    revealedPage: getRevealPage({ currentPage, direction, pageCount })
+    previous: currentPage > 1 ? currentPage - 1 : null,
+    current: currentPage,
+    next: currentPage < pageCount ? currentPage + 1 : null
   };
 }
