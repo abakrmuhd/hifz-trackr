@@ -485,23 +485,78 @@ function renderDetails() {
     getTransitionCount,
     labelAyah,
     labelTransition,
-    isAyahBookmarked: (key) => state.ayahBookmarks.some((item) => item.key === key)
+    isAyahBookmarked: (key) => state.ayahBookmarks.some((item) => item.key === key),
+    resolveIncomingTransition
   });
+
+  if (detail.mode === "transition") {
+    return `
+      <div class="modal-backdrop" data-action="close-modal">
+        <section class="modal detail-modal" role="dialog" aria-modal="true" aria-label="${detail.title}">
+          <header class="modal-head">
+            <strong>${detail.title}</strong>
+            <button class="icon-btn small" data-action="close-modal" aria-label="Close">${icons.close}</button>
+          </header>
+          <div class="detail-panel">
+            <div class="detail-block">
+              <div class="detail-block-head">
+                <span class="detail-metric-label">${detail.transitionOnly.label}</span>
+                <span class="small-pill ${detail.transitionOnly.strength}">${titleCase(detail.transitionOnly.strength)}</span>
+              </div>
+              ${renderCountValue(detail.transitionOnly.count, detail.transitionOnly.target)}
+              <button class="detail-mini-action secondary-btn" data-action="decrement-detail">-</button>
+            </div>
+            <button class="danger-btn full" data-action="reset-detail">Reset</button>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  const transitionMarkup = detail.transition.available
+    ? `
+      <div class="detail-transition-row">
+        <div class="detail-transition-copy">
+          <div class="detail-transition-head">
+            <strong>${detail.transition.path}</strong>
+            <span class="small-pill ${detail.transition.strength}">${titleCase(detail.transition.strength)}</span>
+          </div>
+          <div class="detail-metric-label">${detail.transition.label}</div>
+          ${renderCountValue(detail.transition.count, detail.transition.target)}
+        </div>
+        <button class="detail-mini-action secondary-btn" data-action="decrement-transition-detail" aria-label="Decrease transition count">-</button>
+      </div>
+    `
+    : `
+      <div class="detail-transition-row empty">
+        <div class="detail-transition-copy">
+          <div class="detail-metric-label">${detail.transition.label}</div>
+          <p class="detail-empty-copy">${detail.transition.message}</p>
+        </div>
+      </div>
+    `;
+
   return `
     <div class="modal-backdrop" data-action="close-modal">
-      <section class="modal" role="dialog" aria-modal="true" aria-label="${detail.title}">
+      <section class="modal detail-modal" role="dialog" aria-modal="true" aria-label="${detail.title}">
         <header class="modal-head">
           <strong>${detail.title}</strong>
-          <button class="icon-btn small" data-action="close-modal" aria-label="Close">${icons.close}</button>
-        </header>
-        <div class="detail-card">
-          <div class="detail-title"><span>${detail.kindLabel}</span><span class="small-pill ${detail.strength}">${titleCase(detail.strength)}</span></div>
-          <div class="detail-count">${detail.count}</div>
-          <div class="actions">
-            <button class="secondary-btn" data-action="decrement-detail">-1</button>
-            <button class="danger-btn" data-action="reset-detail">Reset</button>
+          <div class="detail-head-actions">
+            <button class="icon-btn small ${detail.bookmarked ? "active" : ""}" data-action="toggle-ayah-bookmark" aria-label="${detail.headerBookmarkLabel}">${icons.bookmark}</button>
+            <button class="icon-btn small" data-action="close-modal" aria-label="Close">${icons.close}</button>
           </div>
-          ${detail.canBookmark ? `<button class="secondary-btn full" data-action="toggle-ayah-bookmark">${detail.bookmarked ? "Remove ayah bookmark" : "Bookmark ayah"}</button>` : ""}
+        </header>
+        <div class="detail-panel">
+          <div class="detail-block">
+            <div class="detail-block-head">
+              <span class="detail-metric-label">${detail.ayah.label}</span>
+              <span class="small-pill ${detail.ayah.strength}">${titleCase(detail.ayah.strength)}</span>
+            </div>
+            ${renderCountValue(detail.ayah.count, detail.ayah.target)}
+            <button class="detail-mini-action secondary-btn" data-action="decrement-ayah-detail" aria-label="Decrease ayah count">-</button>
+          </div>
+          ${transitionMarkup}
+          <button class="danger-btn full" data-action="reset-detail">Reset</button>
         </div>
       </section>
     </div>
@@ -658,6 +713,8 @@ async function handleAction(event, el) {
   if (action === "toggle-page-bookmark") togglePageBookmark();
   if (action === "undo") undoLast();
   if (action === "decrement-detail") mutateDetail(-1);
+  if (action === "decrement-ayah-detail") mutateSpecificDetail("ayah", -1);
+  if (action === "decrement-transition-detail") mutateSpecificDetail("transition", -1);
   if (action === "reset-detail") resetDetail();
   if (action === "toggle-ayah-bookmark") toggleAyahBookmark();
   if (action === "start-review") startReview();
@@ -787,6 +844,29 @@ function mutateDetail(delta) {
     addEvent("decrement", { transitionKey: detailTarget.key, delta, page: route.page });
   }
   saveState();
+}
+
+async function mutateSpecificDetail(kind, delta) {
+  if (!detailTarget) return;
+
+  if (kind === "ayah" && detailTarget.kind === "ayah") {
+    state.ayahProgress[detailTarget.key] = { repetitionCount: Math.max(0, getAyahCount(detailTarget.key) + delta) };
+    addEvent("decrement", { ayahKey: detailTarget.key, delta, page: route.page });
+    await saveState();
+    render();
+    return;
+  }
+
+  if (kind === "transition") {
+    const target = detailTarget.kind === "transition"
+      ? detailTarget.key
+      : resolveIncomingTransition(detailTarget.key)?.key;
+    if (!target) return;
+    state.transitionProgress[target] = { repetitionCount: Math.max(0, getTransitionCount(target) + delta) };
+    addEvent("decrement", { transitionKey: target, delta, page: route.page });
+    await saveState();
+    render();
+  }
 }
 
 function resetDetail() {
@@ -1026,6 +1106,28 @@ function labelAyah(key) {
 function labelTransition(key) {
   const [, from, to] = key.split("|");
   return `${from} -> ${to}`;
+}
+
+function resolveIncomingTransition(ayahKey) {
+  const page = pageForAyah(ayahKey);
+  const ayahKeys = metadata.pages[String(page)]?.ayahKeys || [];
+  const index = ayahKeys.indexOf(ayahKey);
+  if (index <= 0) return null;
+  const previous = ayahKeys[index - 1];
+  const key = transitionKey(page, previous, ayahKey);
+  return {
+    key,
+    path: labelTransition(key)
+  };
+}
+
+function renderCountValue(count, target) {
+  return `
+    <div class="detail-metric-value-line">
+      <strong class="detail-metric-value">${count}</strong>
+      <span class="detail-metric-target">/${target}</span>
+    </div>
+  `;
 }
 
 function resolveReaderTarget() {
