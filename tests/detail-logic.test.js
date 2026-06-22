@@ -8,28 +8,67 @@ const settings = {
   transitionThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 }
 };
 
-test("describeDetailTarget exposes ayah bookmark affordance", () => {
+test("describeDetailTarget builds ayah modal data with companion transition details", () => {
   const detail = describeDetailTarget(
     { kind: "ayah", key: "2:255" },
     {
       settings,
-      getAyahCount: () => 12,
-      getTransitionCount: () => 0,
-      labelAyah: (key) => `Ayah ${key}`,
-      labelTransition: (key) => `Transition ${key}`,
-      isAyahBookmarked: () => true
+      getAyahCount: () => 24,
+      getTransitionCount: (key) => key === "1|2:254|2:255" ? 8 : 0,
+      labelAyah: (key) => `Surah ${key}`,
+      labelTransition: (key) => {
+        const [, from, to] = key.split("|");
+        return `${from} -> ${to}`;
+      },
+      isAyahBookmarked: () => true,
+      resolveIncomingTransition: () => ({ key: "1|2:254|2:255", path: "2:254 -> 2:255" })
     }
   );
 
-  assert.equal(detail.title, "Ayah 2:255");
-  assert.equal(detail.kindLabel, "Ayah");
-  assert.equal(detail.count, 12);
-  assert.equal(detail.strength, "building");
+  assert.equal(detail.mode, "ayah");
+  assert.equal(detail.title, "Surah 2:255");
   assert.equal(detail.canBookmark, true);
   assert.equal(detail.bookmarked, true);
+  assert.equal(detail.headerBookmarkLabel, "Remove ayah bookmark");
+  assert.deepEqual(detail.ayah, {
+    label: "Ayah count",
+    count: 24,
+    strength: "strong",
+    target: 40
+  });
+  assert.deepEqual(detail.transition, {
+    available: true,
+    path: "2:254 -> 2:255",
+    label: "Transition count",
+    count: 8,
+    strength: "weak",
+    target: 10
+  });
 });
 
-test("describeDetailTarget adapts the shared modal for transitions", () => {
+test("describeDetailTarget builds a stable no-incoming-transition fallback for first ayahs", () => {
+  const detail = describeDetailTarget(
+    { kind: "ayah", key: "1:1" },
+    {
+      settings,
+      getAyahCount: () => 3,
+      getTransitionCount: () => 0,
+      labelAyah: (key) => `Surah ${key}`,
+      labelTransition: () => "",
+      isAyahBookmarked: () => false,
+      resolveIncomingTransition: () => null
+    }
+  );
+
+  assert.equal(detail.mode, "ayah");
+  assert.deepEqual(detail.transition, {
+    available: false,
+    label: "Transition count",
+    message: "No incoming transition"
+  });
+});
+
+test("describeDetailTarget preserves transition-only detail targets", () => {
   const detail = describeDetailTarget(
     { kind: "transition", key: "10|2:1|2:2" },
     {
@@ -38,14 +77,18 @@ test("describeDetailTarget adapts the shared modal for transitions", () => {
       getTransitionCount: () => 3,
       labelAyah: (key) => `Ayah ${key}`,
       labelTransition: () => "2:1 -> 2:2",
-      isAyahBookmarked: () => false
+      isAyahBookmarked: () => false,
+      resolveIncomingTransition: () => null
     }
   );
 
+  assert.equal(detail.mode, "transition");
   assert.equal(detail.title, "2:1 -> 2:2");
-  assert.equal(detail.kindLabel, "Transition");
-  assert.equal(detail.count, 3);
-  assert.equal(detail.strength, "weak");
   assert.equal(detail.canBookmark, false);
-  assert.equal(detail.bookmarked, false);
+  assert.deepEqual(detail.transitionOnly, {
+    label: "Transition count",
+    count: 3,
+    strength: "weak",
+    target: 10
+  });
 });
