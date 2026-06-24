@@ -1,12 +1,12 @@
-export const CACHE_VERSION = "tap-hifz-v29";
+export const CACHE_VERSION = "tap-hifz-v32";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-06-24-thick-transition-arc",
-  "/src/styles.css?v=2026-06-24-thick-transition-arc"
+  "/src/app.js?v=2026-06-24-inner-transition-arc",
+  "/src/styles.css?v=2026-06-24-inner-transition-arc"
 ];
 
 export const DATA_ASSETS = [

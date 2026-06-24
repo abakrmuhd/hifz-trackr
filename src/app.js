@@ -407,8 +407,9 @@ function renderPageSlot(pageData, pageNumber, slotName, inert = false, activeTar
   const previousAyahMap = buildPreviousAyahMap(pageData);
   const lines = pageData.lines.map((line) => renderLine(line, activeTarget, { inert, pageNumber, previousAyahMap })).join("");
   const parity = pageNumber % 2 ? "odd" : "even";
+  const openingPage = pageNumber <= 2 ? "opening-page" : "";
   return `
-    <div class="page-slot ${slotName} ${parity}" ${inert ? 'aria-hidden="true"' : ""}>
+    <div class="page-slot ${slotName} ${parity} ${openingPage}" ${inert ? 'aria-hidden="true"' : ""}>
       <div class="mushaf" dir="rtl">${lines}</div>
     </div>
   `;
@@ -421,7 +422,8 @@ function renderLine(line, activeTarget, options = {}) {
   const fit = words.length > 13 ? "fit-72" : words.length > 11 ? "fit-78" : words.length > 9 ? "fit-84" : words.length > 7 ? "fit-89" : words.length > 6 ? "fit-93" : "";
   const parts = words.map((word) => renderWord(word, activeTarget, options)).join("");
   const unjustify = (options.pageNumber || route.page) <= 2 ? "unjustified" : "";
-  return `<div class="mushaf-line ${fit} ${unjustify} ${words.length <= 3 ? "short" : ""}">${parts}</div>`;
+  const basmalaLine = options.pageNumber === 1 && line.verseRange === "1:1-1:1" ? "basmala-line" : "";
+  return `<div class="mushaf-line ${fit} ${unjustify} ${basmalaLine} ${words.length <= 3 ? "short" : ""}">${parts}</div>`;
 }
 
 function renderWord(word, activeTarget, options = {}) {
@@ -501,36 +503,42 @@ function renderDetails() {
             <strong>${detail.title}</strong>
             <button class="icon-btn small" data-action="close-modal" aria-label="Close">${icons.close}</button>
           </header>
-          <div class="detail-panel">
-            <div class="detail-block">
-              <div class="detail-block-head">
-                <span class="detail-metric-label">${detail.transitionOnly.label}</span>
-                <span class="small-pill ${detail.transitionOnly.strength}">${titleCase(detail.transitionOnly.strength)}</span>
+            <div class="detail-panel">
+              <div class="detail-block">
+                <div class="detail-block-copy">
+                  <div class="detail-block-head">
+                    <span class="small-pill ${detail.transitionOnly.strength}">${titleCase(detail.transitionOnly.strength)}</span>
+                    <span class="detail-metric-label">${detail.transitionOnly.label}</span>
+                  </div>
+                  <div class="detail-count-row">
+                    ${renderCountValue(detail.transitionOnly.count, detail.transitionOnly.target)}
+                    <button class="detail-mini-action secondary-btn" data-action="decrement-detail" aria-label="Decrease transition count">-</button>
+                  </div>
+                </div>
               </div>
-              ${renderCountValue(detail.transitionOnly.count, detail.transitionOnly.target)}
-              <button class="detail-mini-action secondary-btn" data-action="decrement-detail" aria-label="Decrease transition count">-</button>
+              <button class="danger-btn full" data-action="reset-detail">Reset</button>
             </div>
-            <button class="danger-btn full" data-action="reset-detail">Reset</button>
-          </div>
-        </section>
+          </section>
       </div>
     `;
   }
 
-  const transitionMarkup = detail.transition.available
-    ? `
-      <div class="detail-transition-row">
-        <div class="detail-transition-copy">
-          <div class="detail-transition-head">
-            <strong>${detail.transition.path}</strong>
-            <span class="small-pill ${detail.transition.strength}">${titleCase(detail.transition.strength)}</span>
+    const transitionMarkup = detail.transition.available
+      ? `
+        <div class="detail-transition-row">
+          <div class="detail-transition-copy">
+            <div class="detail-transition-head">
+              <span class="small-pill ${detail.transition.strength}">${titleCase(detail.transition.strength)}</span>
+              <span class="detail-metric-label">${detail.transition.label}</span>
+            </div>
+            <div class="detail-count-row">
+              ${renderCountValue(detail.transition.count, detail.transition.target)}
+              <button class="detail-mini-action secondary-btn" data-action="decrement-transition-detail" aria-label="Decrease transition count">-</button>
+            </div>
+            <strong class="detail-transition-path">${detail.transition.path}</strong>
           </div>
-          <div class="detail-metric-label">${detail.transition.label}</div>
-          ${renderCountValue(detail.transition.count, detail.transition.target)}
         </div>
-        <button class="detail-mini-action secondary-btn" data-action="decrement-transition-detail" aria-label="Decrease transition count">-</button>
-      </div>
-    `
+      `
     : `
       <div class="detail-transition-row detail-transition-row-empty">
         <div class="detail-transition-copy">
@@ -550,18 +558,22 @@ function renderDetails() {
             <button class="icon-btn small" data-action="close-modal" aria-label="Close">${icons.close}</button>
           </div>
         </header>
-        <div class="detail-panel">
-          <div class="detail-block">
-            <div class="detail-block-head">
-              <span class="detail-metric-label">${detail.ayah.label}</span>
-              <span class="small-pill ${detail.ayah.strength}">${titleCase(detail.ayah.strength)}</span>
+          <div class="detail-panel">
+            <div class="detail-block">
+              <div class="detail-block-copy">
+                <div class="detail-block-head">
+                  <span class="small-pill ${detail.ayah.strength}">${titleCase(detail.ayah.strength)}</span>
+                  <span class="detail-metric-label">${detail.ayah.label}</span>
+                </div>
+                <div class="detail-count-row">
+                  ${renderCountValue(detail.ayah.count, detail.ayah.target)}
+                  <button class="detail-mini-action secondary-btn" data-action="decrement-ayah-detail" aria-label="Decrease ayah count">-</button>
+                </div>
+              </div>
             </div>
-            ${renderCountValue(detail.ayah.count, detail.ayah.target)}
-            <button class="detail-mini-action secondary-btn" data-action="decrement-ayah-detail" aria-label="Decrease ayah count">-</button>
+            ${transitionMarkup}
+            <button class="danger-btn full" data-action="reset-detail">Reset</button>
           </div>
-          ${transitionMarkup}
-          <button class="danger-btn full" data-action="reset-detail">Reset</button>
-        </div>
       </section>
     </div>
   `;
@@ -615,11 +627,16 @@ function bindScreenEvents() {
       if (lastPointerAyahTap.key === button.dataset.ayah && Date.now() < lastPointerAyahTap.until) return;
       handleAyahTap(button.dataset.ayah, button);
     });
-    bindLongPress(button, () => { detailTarget = { kind: "ayah", key: button.dataset.ayah, page: Number(button.dataset.page) }; render(); });
+    bindLongPress(button, () => {
+      cancelPageGesture();
+      detailTarget = { kind: "ayah", key: button.dataset.ayah, page: Number(button.dataset.page) };
+      render();
+    });
   });
 
   app.querySelectorAll(".page-slot.current button.transition-mark[data-transition]").forEach((button) => {
     bindLongPress(button, () => {
+      cancelPageGesture();
       detailTarget = { kind: "transition", key: button.dataset.transition, page: Number(button.dataset.page) };
       render();
     });
@@ -1132,6 +1149,16 @@ function resetTrackState(animateBack = false) {
   applyTrackState();
 }
 
+function cancelPageGesture() {
+  const pageShell = app.querySelector(".page-shell");
+  if (swipeStart?.pointerId !== undefined) {
+    pageShell?.releasePointerCapture?.(swipeStart.pointerId);
+  }
+  swipeStart = null;
+  suppressClickUntil = Date.now() + 350;
+  resetTrackState(true);
+}
+
 function getAyahCount(key) {
   return state.ayahProgress[key]?.repetitionCount || 0;
 }
@@ -1184,8 +1211,12 @@ function resolveIncomingTransition(ayahKey) {
   const key = transitionKey(page, previous, ayahKey);
   return {
     key,
-    path: labelTransition(key)
+    path: formatIncomingTransitionPath(previous, ayahKey)
   };
+}
+
+function formatIncomingTransitionPath(from, to) {
+  return `${from.split(":")[1]} -> ${to.split(":")[1]}`;
 }
 
 function renderCountValue(count, target) {

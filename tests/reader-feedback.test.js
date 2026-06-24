@@ -27,6 +27,12 @@ test("page shell pointerup routes non-drag ayah taps to feedback", () => {
   assert.match(appSource, /handleAyahTap\(ayahMarker\.dataset\.ayah,\s*ayahMarker\)/);
 });
 
+test("long press detail modal cancels active page swipe gesture", () => {
+  assert.match(appSource, /function cancelPageGesture\(\)/);
+  assert.match(appSource, /bindLongPress\(button,\s*\(\) => \{[\s\S]*?cancelPageGesture\(\);[\s\S]*?detailTarget = \{ kind: "ayah"/);
+  assert.match(appSource, /bindLongPress\(button,\s*\(\) => \{[\s\S]*?cancelPageGesture\(\);[\s\S]*?detailTarget = \{ kind: "transition"/);
+});
+
 test("ayah feedback animations stay visible in the app preview", () => {
   assert.match(styles, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.pulse[\s\S]*animation-duration:\s*\.42s\s*!important/);
   assert.match(styles, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.ayah-count-pop[\s\S]*animation-duration:\s*\.68s\s*!important/);
@@ -50,11 +56,13 @@ test("page navigation click binding excludes ayah marker buttons", () => {
 test("transition arc ring renders above the ayah marker surface", () => {
   assert.match(styles, /\.ayah-mark\.transition-weak::after,[\s\S]*z-index:\s*1/);
   assert.doesNotMatch(styles, /\.ayah-mark::after\s*\{[\s\S]*z-index:\s*-1/);
-  assert.match(styles, /conic-gradient\(from -90deg,\s*#abda1a 0deg var\(--transition-arc, 0deg\)/);
+  assert.match(styles, /conic-gradient\(from -90deg,\s*#abda1a 0deg var\(--transition-arc, 0deg\),\s*rgba\(13, 20, 7, \.68\) var\(--transition-arc, 0deg\) 360deg\)/);
 });
 
 test("transition arc ring is thick enough to be visible around ayah marker", () => {
   assert.match(styles, /--transition-ring-width:\s*5px/);
+  assert.match(styles, /\.ayah-mark::after\s*\{[\s\S]*inset:\s*0/);
   assert.match(styles, /transparent calc\(100% - var\(--transition-ring-width\)\)/);
   assert.doesNotMatch(styles, /transparent calc\(100% - 2px\), #000 calc\(100% - 1px\)/);
+  assert.doesNotMatch(styles, /\.ayah-mark::after\s*\{[\s\S]*inset:\s*calc\(var\(--transition-ring-width\) \* -1\)/);
 });

@@ -31,7 +31,7 @@ test("describeDetailTarget builds ayah modal data with companion transition deta
   assert.equal(detail.bookmarked, true);
   assert.equal(detail.headerBookmarkLabel, "Remove ayah bookmark");
   assert.deepEqual(detail.ayah, {
-    label: "Ayah count",
+    label: "Repetition count",
     count: 24,
     strength: "strong",
     target: 40

@@ -33,7 +33,7 @@ export function describeDetailTarget(detailTarget, options) {
     bookmarked,
     headerBookmarkLabel: bookmarked ? "Remove ayah bookmark" : "Bookmark ayah",
     ayah: {
-      label: "Ayah count",
+      label: "Repetition count",
       count: ayahCount,
       strength: ayahStrength,
       target: buildTargetCount(ayahCount, options.settings.ayahThresholds)

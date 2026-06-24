@@ -643,6 +643,10 @@ small {
   line-height: var(--mushaf-row-height);
 }
 
+.page-slot.opening-page .mushaf {
+  align-content: center;
+}
+
 .mushaf-line {
   display: flex;
   align-items: center;
@@ -667,7 +671,8 @@ small {
 }
 
 .surah-header,
-.basmala {
+.basmala,
+.basmala-line {
   color: var(--strong);
   font-weight: 800;
 }
@@ -714,7 +719,7 @@ small {
 .ayah-mark::after {
   content: "";
   position: absolute;
-  inset: calc(var(--transition-ring-width) * -1);
+  inset: 0;
   border-radius: 999px;
   pointer-events: none;
   opacity: 0;
@@ -729,7 +734,7 @@ small {
   z-index: 1;
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--transition-ring-width)), #000 calc(100% - var(--transition-ring-width)));
   mask: radial-gradient(farthest-side, transparent calc(100% - var(--transition-ring-width)), #000 calc(100% - var(--transition-ring-width)));
-  background: conic-gradient(from -90deg, #abda1a 0deg var(--transition-arc, 0deg), transparent var(--transition-arc, 0deg) 360deg);
+  background: conic-gradient(from -90deg, #abda1a 0deg var(--transition-arc, 0deg), rgba(13, 20, 7, .68) var(--transition-arc, 0deg) 360deg);
 }
 
 .ayah-mark.target,
@@ -888,20 +893,14 @@ small {
 }
 
 .detail-block {
-  grid-template-columns: minmax(0, 1fr) auto;
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: start;
 }
 
-.detail-block > :not(.detail-mini-action) {
-  grid-column: 1;
-}
-
 .detail-mini-action {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: end;
-  justify-self: end;
+  flex: 0 0 auto;
   width: 40px;
   min-width: 40px;
   min-height: 40px;
@@ -912,8 +911,9 @@ small {
 }
 
 .detail-transition-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
   align-items: start;
 }
 
@@ -923,11 +923,36 @@ small {
   min-width: 0;
 }
 
+.detail-block-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.detail-count-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.detail-count-row > .detail-metric-value-line {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.detail-count-row > .detail-mini-action {
+  margin-left: auto;
+}
+
 .detail-block-head,
 .detail-transition-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .detail-block-head > :first-child,
@@ -935,8 +960,16 @@ small {
   min-width: 0;
 }
 
-.detail-transition-copy > .detail-metric-value-line {
-  grid-column: 1;
+.detail-block-head .small-pill,
+.detail-transition-head .small-pill {
+  position: static;
+}
+
+.detail-transition-path {
+  color: var(--text);
+  font-size: .98rem;
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 .detail-metric-label {
