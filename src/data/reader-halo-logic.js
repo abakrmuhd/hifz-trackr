@@ -1,19 +1,19 @@
-import { getStrengthClass } from "./metadata-logic.js";
+import { getCountLevelClass } from "./metadata-logic.js";
 
-export function buildAyahRingState({
-  ayahCount,
+export function buildRepetitionRingState({
+  repetitionCount,
   transitionCount,
-  ayahThresholds,
-  transitionThresholds
+  repetitionThresholds,
+  transitionCountThresholds
 }) {
   const hasTransitionRing = transitionCount != null;
   return {
-    ayahStrength: getStrengthClass(ayahCount, ayahThresholds),
-    transitionStrength:
-      transitionCount == null ? null : getStrengthClass(transitionCount, transitionThresholds),
+    repetitionCountLevel: getCountLevelClass(repetitionCount, repetitionThresholds),
+    transitionCountLevel:
+      transitionCount == null ? null : getCountLevelClass(transitionCount, transitionCountThresholds),
     hasTransitionRing,
     transitionArcDegrees: hasTransitionRing
-      ? buildTransitionArcDegrees(transitionCount, transitionThresholds)
+      ? buildTransitionArcDegrees(transitionCount, transitionCountThresholds)
       : 0
   };
 }
@@ -30,12 +30,12 @@ function buildTargetCount(count, thresholds) {
   return thresholds.strongMax + 1;
 }
 
-export function buildAyahAriaLabel({
+export function buildRepetitionAriaLabel({
   ayahLabel,
-  ayahStrength,
-  transitionStrength
+  repetitionCountLevel,
+  transitionCountLevel
 }) {
-  return transitionStrength
-    ? `${ayahLabel}, ayah ${ayahStrength}, transition ${transitionStrength}`
-    : `${ayahLabel}, ayah ${ayahStrength}`;
+  return transitionCountLevel
+    ? `${ayahLabel}, repetition count ${repetitionCountLevel}, transition count ${transitionCountLevel}`
+    : `${ayahLabel}, repetition count ${repetitionCountLevel}`;
 }

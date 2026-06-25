@@ -1,9 +1,9 @@
-import { getStrengthClass } from "./metadata-logic.js";
+import { getCountLevelClass } from "./metadata-logic.js";
 
 export function describeDetailTarget(detailTarget, options) {
   if (detailTarget.kind === "transition") {
     const count = options.getTransitionCount(detailTarget.key);
-    const strength = getStrengthClass(count, options.settings.transitionThresholds);
+    const countLevel = getCountLevelClass(count, options.settings.transitionCountThresholds);
     return {
       title: options.labelTransition(detailTarget.key),
       mode: "transition",
@@ -13,14 +13,14 @@ export function describeDetailTarget(detailTarget, options) {
       transitionOnly: {
         label: "Transition count",
         count,
-        strength,
-        target: buildTargetCount(count, options.settings.transitionThresholds)
+        countLevel,
+        target: buildTargetCount(count, options.settings.transitionCountThresholds)
       }
     };
   }
 
-  const ayahCount = options.getAyahCount(detailTarget.key);
-  const ayahStrength = getStrengthClass(ayahCount, options.settings.ayahThresholds);
+  const repetitionCount = options.getRepetitionCount(detailTarget.key);
+  const repetitionCountLevel = getCountLevelClass(repetitionCount, options.settings.repetitionThresholds);
   const incoming = options.resolveIncomingTransition
     ? options.resolveIncomingTransition(detailTarget.key)
     : null;
@@ -34,9 +34,9 @@ export function describeDetailTarget(detailTarget, options) {
     headerBookmarkLabel: bookmarked ? "Remove ayah bookmark" : "Bookmark ayah",
     ayah: {
       label: "Repetition count",
-      count: ayahCount,
-      strength: ayahStrength,
-      target: buildTargetCount(ayahCount, options.settings.ayahThresholds)
+      count: repetitionCount,
+      countLevel: repetitionCountLevel,
+      target: buildTargetCount(repetitionCount, options.settings.repetitionThresholds)
     },
     transition: incoming
       ? buildIncomingTransitionDetail(incoming, options)
@@ -50,14 +50,14 @@ export function describeDetailTarget(detailTarget, options) {
 
 function buildIncomingTransitionDetail(incoming, options) {
   const count = options.getTransitionCount(incoming.key);
-  const strength = getStrengthClass(count, options.settings.transitionThresholds);
+  const countLevel = getCountLevelClass(count, options.settings.transitionCountThresholds);
   return {
     available: true,
     path: incoming.path,
     label: "Transition count",
     count,
-    strength,
-    target: buildTargetCount(count, options.settings.transitionThresholds)
+    countLevel,
+    target: buildTargetCount(count, options.settings.transitionCountThresholds)
   };
 }
 

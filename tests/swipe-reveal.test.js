@@ -5,7 +5,8 @@ import {
   clampTrackOffset,
   getTrackDirection,
   getTrackTargetPage,
-  shouldCommitTrackMove
+  shouldCommitTrackMove,
+  shouldStartTrackGesture
 } from "../src/reader/swipe-reveal.js";
 
 test("getTrackDirection maps left drags to previous and right drags to next", () => {
@@ -23,6 +24,12 @@ test("shouldCommitTrackMove uses strict horizontal and vertical thresholds", () 
   assert.equal(shouldCommitTrackMove({ dx: 61, dy: 30, commitDistance: 60, verticalLimit: 70 }), true);
   assert.equal(shouldCommitTrackMove({ dx: 60, dy: 30, commitDistance: 60, verticalLimit: 70 }), false);
   assert.equal(shouldCommitTrackMove({ dx: 90, dy: 70, commitDistance: 60, verticalLimit: 70 }), false);
+});
+
+test("shouldStartTrackGesture lets desktop text drags select text", () => {
+  assert.equal(shouldStartTrackGesture({ pointerType: "mouse", startedOnSelectableText: true }), false);
+  assert.equal(shouldStartTrackGesture({ pointerType: "mouse", startedOnSelectableText: false }), true);
+  assert.equal(shouldStartTrackGesture({ pointerType: "touch", startedOnSelectableText: true }), true);
 });
 
 test("clampTrackOffset damps large drags", () => {

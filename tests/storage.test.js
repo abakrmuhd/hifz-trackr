@@ -13,6 +13,7 @@ import {
 const defaultState = {
   ayahProgress: {},
   transitionProgress: {},
+  lastPage: 1,
   recentPages: [],
   ayahBookmarks: [],
   pageBookmarks: [],
@@ -23,8 +24,8 @@ const defaultState = {
     vibration: "auto",
     reviewQueueSize: 12,
     doubleTapWindow: 250,
-    ayahThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 },
-    transitionThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 }
+    repetitionThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 },
+    transitionCountThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 }
   }
 };
 
@@ -33,15 +34,32 @@ test("mergeStoredState preserves nested settings defaults while applying saved v
     recentPages: [12],
     settings: {
       theme: "light",
-      ayahThresholds: { weakMax: 4 }
+      repetitionThresholds: { weakMax: 4 }
     }
   });
 
   assert.deepEqual(merged.recentPages, [12]);
+  assert.equal(merged.lastPage, 12);
   assert.equal(merged.settings.theme, "light");
-  assert.equal(merged.settings.ayahThresholds.weakMax, 4);
-  assert.equal(merged.settings.ayahThresholds.buildingMax, 19);
-  assert.equal(merged.settings.transitionThresholds.strongMax, 39);
+  assert.equal(merged.settings.repetitionThresholds.weakMax, 4);
+  assert.equal(merged.settings.repetitionThresholds.buildingMax, 19);
+  assert.equal(merged.settings.transitionCountThresholds.strongMax, 39);
+});
+
+test("mergeStoredState migrates legacy threshold names to count threshold names", () => {
+  const legacyRepetitionThresholdKey = ["ayah", "Thresholds"].join("");
+  const legacyTransitionCountThresholdKey = ["transition", "Thresholds"].join("");
+  const merged = mergeStoredState(defaultState, {
+    settings: {
+      [legacyRepetitionThresholdKey]: { weakMax: 3 },
+      [legacyTransitionCountThresholdKey]: { strongMax: 49 }
+    }
+  });
+
+  assert.equal(merged.settings.repetitionThresholds.weakMax, 3);
+  assert.equal(merged.settings.transitionCountThresholds.strongMax, 49);
+  assert.equal(legacyRepetitionThresholdKey in merged.settings, false);
+  assert.equal(legacyTransitionCountThresholdKey in merged.settings, false);
 });
 
 test("selectInitialStateSource prefers IndexedDB state when it exists", () => {
@@ -56,6 +74,7 @@ test("selectInitialStateSource prefers IndexedDB state when it exists", () => {
 
   assert.equal(result.source, APP_STATE_KEY);
   assert.deepEqual(result.state.recentPages, [99]);
+  assert.equal(result.state.lastPage, 99);
 });
 
 test("selectInitialStateSource imports legacy localStorage state when IndexedDB is empty", () => {
@@ -67,7 +86,27 @@ test("selectInitialStateSource imports legacy localStorage state when IndexedDB 
 
   assert.equal(result.source, LEGACY_LOCAL_STORAGE_KEY);
   assert.deepEqual(result.state.recentPages, [5]);
+  assert.equal(result.state.lastPage, 5);
   assert.equal(result.state.settings.sound, true);
+});
+
+test("mergeStoredState keeps an explicit saved last page over recent pages", () => {
+  const merged = mergeStoredState(defaultState, {
+    lastPage: 440,
+    recentPages: [12, 11]
+  });
+
+  assert.equal(merged.lastPage, 440);
+  assert.deepEqual(merged.recentPages, [12, 11]);
+});
+
+test("mergeStoredState ignores invalid last page and falls back to recent pages", () => {
+  const merged = mergeStoredState(defaultState, {
+    lastPage: 0,
+    recentPages: [604]
+  });
+
+  assert.equal(merged.lastPage, 604);
 });
 
 test("loadPersistedState resolves IndexedDB reads even when request succeeds before transaction completes", async () => {
@@ -132,6 +171,7 @@ test("loadPersistedState resolves IndexedDB reads even when request succeeds bef
   try {
     const state = await loadPersistedState(defaultState);
     assert.deepEqual(state.recentPages, [33]);
+    assert.equal(state.lastPage, 33);
   } finally {
     globalThis.indexedDB = originalIndexedDb;
     globalThis.localStorage = originalLocalStorage;
@@ -164,6 +204,7 @@ test("loadPersistedState falls back to localStorage when IndexedDB open hangs", 
     const state = await loadPersistedState(defaultState);
     const elapsed = Date.now() - before;
     assert.deepEqual(state.recentPages, [7]);
+    assert.equal(state.lastPage, 7);
     assert.equal(state.settings.theme, "light");
     assert.ok(elapsed >= INDEXED_DB_TIMEOUT_MS);
   } finally {

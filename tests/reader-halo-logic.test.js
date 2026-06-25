@@ -2,85 +2,85 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  buildAyahRingState,
-  buildAyahAriaLabel
+  buildRepetitionAriaLabel,
+  buildRepetitionRingState
 } from "../src/data/reader-halo-logic.js";
 
-const ayahThresholds = { weakMax: 9, buildingMax: 19, strongMax: 39 };
-const transitionThresholds = { weakMax: 9, buildingMax: 19, strongMax: 39 };
+const repetitionThresholds = { weakMax: 9, buildingMax: 19, strongMax: 39 };
+const transitionCountThresholds = { weakMax: 9, buildingMax: 19, strongMax: 39 };
 
-test("buildAyahRingState maps ayah and transition counts into badge and ring classes", () => {
+test("buildRepetitionRingState maps repetition and transition counts into badge and ring classes", () => {
   assert.deepEqual(
-    buildAyahRingState({
-      ayahCount: 22,
+    buildRepetitionRingState({
+      repetitionCount: 22,
       transitionCount: 12,
-      ayahThresholds,
-      transitionThresholds
+      repetitionThresholds,
+      transitionCountThresholds
     }),
     {
-      ayahStrength: "strong",
-      transitionStrength: "building",
+      repetitionCountLevel: "strong",
+      transitionCountLevel: "building",
       hasTransitionRing: true,
       transitionArcDegrees: 216
     }
   );
 });
 
-test("buildAyahRingState computes transition arc from count over target", () => {
+test("buildRepetitionRingState computes transition arc from count over target", () => {
   assert.equal(
-    buildAyahRingState({
-      ayahCount: 1,
+    buildRepetitionRingState({
+      repetitionCount: 1,
       transitionCount: 5,
-      ayahThresholds,
-      transitionThresholds
+      repetitionThresholds,
+      transitionCountThresholds
     }).transitionArcDegrees,
     180
   );
 
   assert.equal(
-    buildAyahRingState({
-      ayahCount: 1,
+    buildRepetitionRingState({
+      repetitionCount: 1,
       transitionCount: 80,
-      ayahThresholds,
-      transitionThresholds
+      repetitionThresholds,
+      transitionCountThresholds
     }).transitionArcDegrees,
     360
   );
 });
 
-test("buildAyahRingState omits the ring when no transition is available", () => {
+test("buildRepetitionRingState omits the ring when no transition is available", () => {
   assert.deepEqual(
-    buildAyahRingState({
-      ayahCount: 3,
+    buildRepetitionRingState({
+      repetitionCount: 3,
       transitionCount: null,
-      ayahThresholds,
-      transitionThresholds
+      repetitionThresholds,
+      transitionCountThresholds
     }),
     {
-      ayahStrength: "weak",
-      transitionStrength: null,
+      repetitionCountLevel: "weak",
+      transitionCountLevel: null,
       hasTransitionRing: false,
       transitionArcDegrees: 0
     }
   );
 });
 
-test("buildAyahAriaLabel appends transition strength only when a transition exists", () => {
+test("buildRepetitionAriaLabel appends transition count level only when a transition exists", () => {
   assert.equal(
-    buildAyahAriaLabel({
+    buildRepetitionAriaLabel({
       ayahLabel: "Surah 2:5",
-      ayahStrength: "strong",
-      transitionStrength: "building"
+      repetitionCountLevel: "strong",
+      transitionCountLevel: "building"
     }),
-    "Surah 2:5, ayah strong, transition building"
+    "Surah 2:5, repetition count strong, transition count building"
   );
 
   assert.equal(
-    buildAyahAriaLabel({
+    buildRepetitionAriaLabel({
       ayahLabel: "Surah 1:1",
-      ayahStrength: "weak",
-      transitionStrength: null
+      repetitionCountLevel: "weak",
+      transitionCountLevel: null
     }),
-    "Surah 1:1, ayah weak"
+    "Surah 1:1, repetition count weak"
   );
 });

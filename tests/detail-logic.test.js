@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import { describeDetailTarget } from "../src/data/detail-logic.js";
 
 const settings = {
-  ayahThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 },
-  transitionThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 }
+  repetitionThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 },
+  transitionCountThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 }
 };
 
 test("describeDetailTarget builds ayah modal data with companion transition details", () => {
@@ -13,7 +13,7 @@ test("describeDetailTarget builds ayah modal data with companion transition deta
     { kind: "ayah", key: "2:255" },
     {
       settings,
-      getAyahCount: () => 24,
+      getRepetitionCount: () => 24,
       getTransitionCount: (key) => key === "1|2:254|2:255" ? 8 : 0,
       labelAyah: (key) => `Surah ${key}`,
       labelTransition: (key) => {
@@ -33,7 +33,7 @@ test("describeDetailTarget builds ayah modal data with companion transition deta
   assert.deepEqual(detail.ayah, {
     label: "Repetition count",
     count: 24,
-    strength: "strong",
+    countLevel: "strong",
     target: 40
   });
   assert.deepEqual(detail.transition, {
@@ -41,7 +41,7 @@ test("describeDetailTarget builds ayah modal data with companion transition deta
     path: "2:254 -> 2:255",
     label: "Transition count",
     count: 8,
-    strength: "weak",
+    countLevel: "weak",
     target: 10
   });
 });
@@ -51,7 +51,7 @@ test("describeDetailTarget builds a stable no-incoming-transition fallback for f
     { kind: "ayah", key: "1:1" },
     {
       settings,
-      getAyahCount: () => 3,
+      getRepetitionCount: () => 3,
       getTransitionCount: () => 0,
       labelAyah: (key) => `Surah ${key}`,
       labelTransition: () => "",
@@ -74,7 +74,7 @@ test("describeDetailTarget saturates mastered targets at the final milestone", (
     { kind: "ayah", key: "2:256" },
     {
       settings,
-      getAyahCount: () => 41,
+      getRepetitionCount: () => 41,
       getTransitionCount: () => 0,
       labelAyah: (key) => `Surah ${key}`,
       labelTransition: () => "",
@@ -91,7 +91,7 @@ test("describeDetailTarget treats a missing incoming-transition resolver as no i
     { kind: "ayah", key: "3:1" },
     {
       settings,
-      getAyahCount: () => 7,
+      getRepetitionCount: () => 7,
       getTransitionCount: () => 0,
       labelAyah: (key) => `Surah ${key}`,
       labelTransition: () => "",
@@ -112,7 +112,7 @@ test("describeDetailTarget preserves transition-only detail targets", () => {
     { kind: "transition", key: "10|2:1|2:2" },
     {
       settings,
-      getAyahCount: () => 0,
+      getRepetitionCount: () => 0,
       getTransitionCount: () => 3,
       labelAyah: (key) => `Ayah ${key}`,
       labelTransition: () => "2:1 -> 2:2",
@@ -127,7 +127,7 @@ test("describeDetailTarget preserves transition-only detail targets", () => {
   assert.deepEqual(detail.transitionOnly, {
     label: "Transition count",
     count: 3,
-    strength: "weak",
+    countLevel: "weak",
     target: 10
   });
 });

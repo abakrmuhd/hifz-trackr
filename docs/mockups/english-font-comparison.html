@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tap Hifz English Font Comparison</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700;800&family=Atkinson+Hyperlegible+Next:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;700&family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Literata:opsz,wght@7..72,400;7..72,600;7..72,700&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;700&family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700;800&display=swap");
+
+    :root {
+      color-scheme: dark;
+      --bg: #121319;
+      --panel: #1b1d26;
+      --surface: #232632;
+      --surface-2: #2a2e3b;
+      --line: #373c4d;
+      --line-soft: rgba(255, 255, 255, 0.08);
+      --text: #f4f5ef;
+      --muted: #a6adbb;
+      --quiet: #7e8593;
+      --strong: #abda1a;
+      --building: #769622;
+      --weak: #465829;
+      --empty: #3d433a;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+      --radius: 8px;
+      --shell-width: 332px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(171, 218, 26, 0.1), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(118, 150, 34, 0.08), transparent 34%),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    main {
+      width: min(1440px, calc(100vw - 28px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: clamp(1.8rem, 3vw, 2.9rem);
+      line-height: 1.02;
+    }
+
+    .hero p {
+      max-width: 860px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .note {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      min-height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .font-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .font-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .font-head h2 {
+      font-size: 1rem;
+      line-height: 1.15;
+    }
+
+    .font-head p {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.38;
+    }
+
+    .tag {
+      flex: 0 0 auto;
+      min-height: 24px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(171, 218, 26, 0.14);
+      color: var(--strong);
+      font-size: 0.7rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .font-body {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .sample {
+      display: grid;
+      gap: 10px;
+    }
+
+    .sample-title {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .phone {
+      width: var(--shell-width);
+      max-width: 100%;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #202330;
+    }
+
+    .phone.english-font {
+      font-family: var(--font-family);
+    }
+
+    .topbar,
+    .section-head,
+    .detail-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .topbar {
+      min-height: 44px;
+    }
+
+    .brand h3 {
+      font-size: 1.22rem;
+      line-height: 1.05;
+      font-weight: 800;
+    }
+
+    .brand p,
+    .section-head p,
+    .row small,
+    .preview-note {
+      color: var(--muted);
+    }
+
+    .brand p,
+    .section-head p {
+      margin-top: 4px;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .icon-btn {
+      display: inline-grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .search {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 44px;
+      margin: 8px 0 12px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      min-height: 42px;
+      padding: 4px;
+      border-radius: 8px;
+      background: rgba(10, 22, 40, 0.45);
+    }
+
+    .tabs span {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .tabs .active {
+      background: linear-gradient(135deg, var(--surface-2), var(--surface));
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .progress-card,
+    .detail-card,
+    .row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .progress-card {
+      padding: 10px;
+    }
+
+    .section-head {
+      align-items: end;
+      margin: 12px 0 8px;
+    }
+
+    .section-head h3 {
+      font-size: 0.96rem;
+      line-height: 1.15;
+      font-weight: 700;
+    }
+
+    .pill {
+      display: inline-grid;
+      place-items: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: var(--strong);
+      color: #263500;
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .juz-strip {
+      height: 8px;
+      margin-bottom: 8px;
+      border-radius: 999px;
+      background: linear-gradient(
+        to left,
+        var(--strong) 0 8%,
+        var(--building) 8% 16%,
+        var(--empty) 16% 24%,
+        var(--weak) 24% 32%,
+        var(--strong) 32% 40%,
+        var(--building) 40% 48%,
+        var(--strong) 48% 56%,
+        var(--empty) 56% 64%,
+        var(--weak) 64% 72%,
+        var(--strong) 72% 80%,
+        var(--building) 80% 88%,
+        var(--empty) 88% 100%
+      );
+    }
+
+    .juz-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .juz-grid span,
+    .page-grid span {
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      font-weight: 800;
+    }
+
+    .juz-grid span {
+      min-height: 28px;
+      font-size: 0.76rem;
+    }
+
+    .page-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .page-grid span {
+      min-height: 32px;
+      font-size: 0.64rem;
+    }
+
+    .empty { background: var(--empty); color: #f7f7ef; }
+    .weak { background: var(--weak); color: #f7f7ef; }
+    .building { background: var(--building); color: #fef3c7; }
+    .strong { background: var(--strong); color: #263500; }
+
+    .label {
+      margin: 12px 0 8px;
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 52px;
+      padding: 9px 10px;
+      font-size: 0.84rem;
+      text-align: left;
+    }
+
+    .row strong,
+    .row small {
+      display: block;
+    }
+
+    .row small {
+      margin-top: 3px;
+      font-size: 0.68rem;
+      line-height: 1.32;
+    }
+
+    .type-pill {
+      min-height: 24px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .reading {
+      display: grid;
+      gap: 8px;
+    }
+
+    .reading-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 40px;
+    }
+
+    .reading-meta {
+      min-width: 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .page-shell {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .mushaf {
+      display: grid;
+      gap: 4px;
+      color: #f6f1df;
+      font-family: "Traditional Arabic", "Amiri", "Scheherazade New", serif;
+      font-size: 1.08rem;
+      line-height: 1.7;
+    }
+
+    .mushaf-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.34em;
+      min-height: 28px;
+      white-space: nowrap;
+    }
+
+    .ayah {
+      display: inline-grid;
+      place-items: center;
+      min-width: 1.74rem;
+      height: 1.74rem;
+      border: 1px solid rgba(171, 218, 26, 0.75);
+      border-radius: 999px;
+      background: rgba(171, 218, 26, 0.12);
+      color: #f7f7ef;
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 0.66rem;
+      font-weight: 800;
+    }
+
+    .detail-card {
+      padding: 12px;
+    }
+
+    .detail-title {
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .metric {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .metric strong {
+      font-size: 2.2rem;
+      line-height: 0.95;
+      font-weight: 800;
+    }
+
+    .preview-note {
+      font-size: 0.78rem;
+      line-height: 1.38;
+    }
+
+    .recommendations {
+      display: grid;
+      gap: 8px;
+    }
+
+    .recommendations li {
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .inter { --font-family: "Inter", system-ui, sans-serif; }
+    .manrope { --font-family: "Manrope", system-ui, sans-serif; }
+    .instrument { --font-family: "Instrument Sans", system-ui, sans-serif; }
+    .source { --font-family: "Source Sans 3", system-ui, sans-serif; }
+    .public { --font-family: "Public Sans", system-ui, sans-serif; }
+    .plex { --font-family: "IBM Plex Sans", system-ui, sans-serif; }
+    .atkinson { --font-family: "Atkinson Hyperlegible Next", system-ui, sans-serif; }
+    .noto { --font-family: "Noto Sans", system-ui, sans-serif; }
+    .alegreya { --font-family: "Alegreya Sans", system-ui, sans-serif; }
+    .literata { --font-family: "Literata", Georgia, serif; }
+
+    @media (max-width: 1100px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .phone {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div class="note">Arabic text stays fixed. Only English UI text changes here.</div>
+      <h1>Tap Hifz English Font Comparison</h1>
+      <p>
+        These are ten directions for the app's English interface text only: headings, tabs, buttons, labels, settings, and metadata.
+        The mushaf text below stays in the current Arabic stack so you can judge whether the English font feels calm, readable, and respectful next to it.
+      </p>
+    </section>
+
+    <section class="grid">
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>1. Inter</h2>
+            <p>Safe baseline. Clean, familiar, and already close to the current app.</p>
+          </div>
+          <span class="tag">Baseline</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font inter">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>Local-first Quran memorization tracker.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="search">Search page, surah, or juz</div>
+            <div class="tabs"><span class="active">Progress</span><span>Surahs</span><span>Bookmarks</span></div>
+            <div class="section-head">
+              <div>
+                <h3>Whole Mushaf By Juz</h3>
+                <p>Steady, neutral, easy to scan.</p>
+              </div>
+              <span class="pill">Start review</span>
+            </div>
+            <div class="progress-card">
+              <div class="juz-strip"></div>
+              <div class="juz-grid"><span class="strong">1</span><span class="building">2</span><span class="empty">3</span><span class="weak">4</span><span class="strong">5</span><span class="building">6</span></div>
+              <div class="page-grid"><span class="building">162</span><span class="strong">163</span><span class="empty">164</span><span class="weak">165</span><span class="strong">166</span></div>
+            </div>
+            <div class="label">Practice Next</div>
+            <div class="list"><div class="row"><span><strong>Al-Baqarah 2:282</strong><small>Page 48, ayah count 7</small></span><span class="type-pill">Ayah</span></div></div>
+          </div>
+          <p class="preview-note">Feels practical and balanced, but maybe a little generic if you want more personality.</p>
+        </div>
+      </article>
+
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>2. Manrope</h2>
+            <p>Softer geometry with a polished, modern app feel.</p>
+          </div>
+          <span class="tag">Modern</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font manrope">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>Progress that feels calm and current.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="search">Search page, surah, or juz</div>
+            <div class="tabs"><span class="active">Progress</span><span>Surahs</span><span>Bookmarks</span></div>
+            <div class="section-head">
+              <div>
+                <h3>Whole Mushaf By Juz</h3>
+                <p>Friendlier than Inter without losing clarity.</p>
+              </div>
+              <span class="pill">Start review</span>
+            </div>
+            <div class="progress-card">
+              <div class="juz-strip"></div>
+              <div class="juz-grid"><span class="strong">1</span><span class="building">2</span><span class="empty">3</span><span class="weak">4</span><span class="strong">5</span><span class="building">6</span></div>
+              <div class="page-grid"><span class="building">162</span><span class="strong">163</span><span class="empty">164</span><span class="weak">165</span><span class="strong">166</span></div>
+            </div>
+            <div class="label">Practice Next</div>
+            <div class="list"><div class="row"><span><strong>Weak Review Queue</strong><small>Page-local ayahs and transitions</small></span><span class="type-pill">12 items</span></div></div>
+          </div>
+          <p class="preview-note">A strong candidate if you want the app to feel smoother and a bit more premium.</p>
+        </div>
+      </article>
+
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>3. Instrument Sans</h2>
+            <p>Compact and composed, with slightly more editorial character.</p>
+          </div>
+          <span class="tag">Refined</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font instrument">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>Sharper hierarchy for labels and controls.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="search">Search page, surah, or juz</div>
+            <div class="tabs"><span class="active">Progress</span><span>Surahs</span><span>Bookmarks</span></div>
+            <div class="section-head">
+              <div>
+                <h3>Whole Mushaf By Juz</h3>
+                <p>Nicely controlled in small sizes.</p>
+              </div>
+              <span class="pill">Start review</span>
+            </div>
+            <div class="detail-card">
+              <div class="detail-title"><span>Transition Detail</span><span class="type-pill">Building</span></div>
+              <div class="metric"><div><strong>14</strong></div><span class="type-pill">Transition -1</span></div>
+            </div>
+          </div>
+          <p class="preview-note">Works well if you want the interface to feel neat and intentionally designed.</p>
+        </div>
+      </article>
+
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>4. Source Sans 3</h2>
+            <p>Warm, extremely readable, and quietly dependable.</p>
+          </div>
+          <span class="tag">Readable</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font source">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>Simple, soft, and easy to live with.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="search">Search page, surah, or juz</div>
+            <div class="tabs"><span class="active">Progress</span><span>Surahs</span><span>Bookmarks</span></div>
+            <div class="label">Bookmarks</div>
+            <div class="list">
+              <div class="row"><span><strong>Page 48</strong><small>Al-Baqarah 2:282</small></span><span class="type-pill">Saved</span></div>
+              <div class="row"><span><strong>Surah 36</strong><small>Recent reading session</small></span><span class="type-pill">Recent</span></div>
+            </div>
+          </div>
+          <p class="preview-note">Probably the safest “better but not flashy” choice.</p>
+        </div>
+      </article>
+
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>5. Public Sans</h2>
+            <p>Structured, stable, and excellent for utility surfaces.</p>
+          </div>
+          <span class="tag">Structured</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font public">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>Feels serious and organized.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="search">Search page, surah, or juz</div>
+            <div class="tabs"><span class="active">Progress</span><span>Surahs</span><span>Bookmarks</span></div>
+            <div class="label">Settings</div>
+            <div class="list">
+              <div class="row"><span><strong>Review queue size</strong><small>Number of weak items per session</small></span><span class="type-pill">12</span></div>
+              <div class="row"><span><strong>Double tap window</strong><small>Gesture timing in milliseconds</small></span><span class="type-pill">250ms</span></div>
+            </div>
+          </div>
+          <p class="preview-note">Great for utilitarian clarity, though a bit more formal than calm.</p>
+        </div>
+      </article>
+
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>6. IBM Plex Sans</h2>
+            <p>Technical and crisp, with a slightly stronger voice.</p>
+          </div>
+          <span class="tag">Technical</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font plex">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>More deliberate, slightly sharper tone.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="reading">
+              <div class="reading-top">
+                <button class="icon-btn" aria-hidden="true">&lt;</button>
+                <div class="reading-meta">Page 48 · Al-Baqarah 2:282</div>
+                <button class="icon-btn" aria-hidden="true">*</button>
+              </div>
+              <div class="page-shell">
+                <div class="mushaf">
+                  <div class="mushaf-line">يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوٓا۟ <span class="ayah">٢٨٢</span></div>
+                  <div class="mushaf-line">إِذَا تَدَايَنتُم بِدَيْنٍ إِلَىٰٓ أَجَلٍ مُّسَمًّى</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="preview-note">Readable, but it pushes the app a little closer to “tool” than “companion.”</p>
+        </div>
+      </article>
+
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>7. Atkinson Hyperlegible Next</h2>
+            <p>Optimized for legibility, especially at smaller sizes.</p>
+          </div>
+          <span class="tag">Accessible</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font atkinson">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>Exceptionally readable for labels and metadata.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="search">Search page, surah, or juz</div>
+            <div class="tabs"><span class="active">Progress</span><span>Surahs</span><span>Bookmarks</span></div>
+            <div class="list">
+              <div class="row"><span><strong>Weak review</strong><small>No weak items to review</small></span><span class="type-pill">Queue</span></div>
+              <div class="row"><span><strong>Bookmarks</strong><small>Pages you open will appear here</small></span><span class="type-pill">Local</span></div>
+            </div>
+          </div>
+          <p class="preview-note">Excellent for readability. Slightly less elegant, but very kind to the eyes.</p>
+        </div>
+      </article>
+
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>8. Noto Sans</h2>
+            <p>Calm and international, with a neutral rhythm.</p>
+          </div>
+          <span class="tag">Calm</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font noto">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>Plainspoken, balanced, and not overdesigned.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="search">Search page, surah, or juz</div>
+            <div class="tabs"><span class="active">Progress</span><span>Surahs</span><span>Bookmarks</span></div>
+            <div class="detail-card">
+              <div class="detail-title"><span>Ayah Detail</span><span class="type-pill">Strong</span></div>
+              <div class="metric"><div><strong>32</strong></div><span class="type-pill">Reset</span></div>
+            </div>
+          </div>
+          <p class="preview-note">A nice middle ground if you want the UI to feel gentle and universal.</p>
+        </div>
+      </article>
+
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>9. Alegreya Sans</h2>
+            <p>Human, softer, and a little more reflective than typical app fonts.</p>
+          </div>
+          <span class="tag">Warm</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font alegreya">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>More literary and companion-like.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="search">Search page, surah, or juz</div>
+            <div class="tabs"><span class="active">Progress</span><span>Surahs</span><span>Bookmarks</span></div>
+            <div class="label">Practice Next</div>
+            <div class="list"><div class="row"><span><strong>Al-Mulk 67:1</strong><small>Page 562, transition count 5</small></span><span class="type-pill">Transition</span></div></div>
+          </div>
+          <p class="preview-note">Lovely tone, though it may start to feel less app-like in dense screens.</p>
+        </div>
+      </article>
+
+      <article class="font-card">
+        <div class="font-head">
+          <div>
+            <h2>10. Literata</h2>
+            <p>Serif option for a more bookish, contemplative interface.</p>
+          </div>
+          <span class="tag">Bookish</span>
+        </div>
+        <div class="font-body">
+          <div class="phone english-font literata">
+            <div class="topbar">
+              <div class="brand">
+                <h3>Tap Hifz</h3>
+                <p>Feels closer to reading than utility software.</p>
+              </div>
+              <button class="icon-btn" aria-hidden="true">+</button>
+            </div>
+            <div class="search">Search page, surah, or juz</div>
+            <div class="tabs"><span class="active">Progress</span><span>Surahs</span><span>Bookmarks</span></div>
+            <div class="list">
+              <div class="row"><span><strong>Reading session</strong><small>Page 48 · Resume where you stopped</small></span><span class="type-pill">Continue</span></div>
+            </div>
+          </div>
+          <p class="preview-note">Interesting if you want a more devotional or literary mood, but it may slow scanning a bit.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

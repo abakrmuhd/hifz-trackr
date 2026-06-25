@@ -8,6 +8,10 @@ export function shouldCommitTrackMove({ dx, dy, commitDistance, verticalLimit })
   return Math.abs(dx) > commitDistance && Math.abs(dy) < verticalLimit;
 }
 
+export function shouldStartTrackGesture({ pointerType, startedOnSelectableText }) {
+  return !(pointerType === "mouse" && startedOnSelectableText);
+}
+
 export function clampTrackOffset(dx, { maxOffset, dragRatio }) {
   const scaled = dx * dragRatio;
   return Math.max(-maxOffset, Math.min(maxOffset, scaled));

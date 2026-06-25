@@ -60,7 +60,7 @@ export function buildMetadataFromPages(pageMap, juzRanges) {
   };
 }
 
-export function getStrengthClass(count, thresholds) {
+export function getCountLevelClass(count, thresholds) {
   if (count <= 0) return "empty";
   if (count <= thresholds.weakMax) return "weak";
   if (count <= thresholds.buildingMax) return "building";
@@ -68,26 +68,26 @@ export function getStrengthClass(count, thresholds) {
   return "mastered";
 }
 
-export function getPageStrength(page, metadata, ayahProgress, thresholds) {
+export function getPageRepetitionLevel(page, metadata, ayahProgress, thresholds) {
   const ayahKeys = metadata.pages[String(page)]?.ayahKeys || [];
   if (!ayahKeys.length) return "empty";
   const rank = { empty: 0, weak: 1, building: 2, strong: 3, mastered: 4 };
   return ayahKeys
-    .map((key) => getStrengthClass(ayahProgress[key]?.repetitionCount || 0, thresholds))
+    .map((key) => getCountLevelClass(ayahProgress[key]?.repetitionCount || 0, thresholds))
     .sort((a, b) => rank[a] - rank[b])[0];
 }
 
-export function buildWeakItems({
+export function buildLowCountItems({
   metadata,
   ayahProgress,
   transitionProgress,
-  ayahThresholds,
-  transitionThresholds,
+  repetitionThresholds,
+  transitionCountThresholds,
   labelAyah,
   labelTransition
 }) {
   const ayahs = Object.entries(ayahProgress)
-    .filter(([, value]) => value.repetitionCount > 0 && value.repetitionCount <= ayahThresholds.weakMax)
+    .filter(([, value]) => value.repetitionCount > 0 && value.repetitionCount <= repetitionThresholds.weakMax)
     .map(([key, value]) => ({
       kind: "Ayah",
       key,
@@ -98,7 +98,7 @@ export function buildWeakItems({
     }));
 
   const transitions = Object.entries(transitionProgress)
-    .filter(([, value]) => value.repetitionCount > 0 && value.repetitionCount <= transitionThresholds.weakMax)
+    .filter(([, value]) => value.repetitionCount > 0 && value.repetitionCount <= transitionCountThresholds.weakMax)
     .map(([key, value]) => ({
       kind: "Transition",
       key,

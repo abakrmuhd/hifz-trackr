@@ -4,20 +4,45 @@ export const APP_STORE_NAME = "app-state";
 export const APP_STATE_KEY = "tap-hifz-app-state";
 export const LEGACY_LOCAL_STORAGE_KEY = "tap-hifz-state";
 export const INDEXED_DB_TIMEOUT_MS = 750;
+const LEGACY_REPETITION_THRESHOLD_KEY = ["ayah", "Thresholds"].join("");
+const LEGACY_TRANSITION_COUNT_THRESHOLD_KEY = ["transition", "Thresholds"].join("");
 
 const cloneValue = globalThis.structuredClone
   ? (value) => globalThis.structuredClone(value)
   : (value) => JSON.parse(JSON.stringify(value));
 
+export function resolveStoredLastPage(value, recentPages = [], fallback = 1) {
+  const candidates = [value, recentPages?.[0], fallback];
+  const page = candidates.find((candidate) => Number.isInteger(candidate) && candidate >= 1);
+  return page || 1;
+}
+
 export function mergeStoredState(base, value) {
+  const mergedRecentPages = Array.isArray(value?.recentPages) ? value.recentPages : base.recentPages;
+  const savedSettings = value?.settings || {};
+  const {
+    [LEGACY_REPETITION_THRESHOLD_KEY]: legacyRepetitionThresholds,
+    [LEGACY_TRANSITION_COUNT_THRESHOLD_KEY]: legacyTransitionCountThresholds,
+    ...storedSettings
+  } = savedSettings;
+
   return {
     ...cloneValue(base),
     ...value,
+    lastPage: resolveStoredLastPage(value?.lastPage, mergedRecentPages, base.lastPage),
     settings: {
       ...base.settings,
-      ...(value?.settings || {}),
-      ayahThresholds: { ...base.settings.ayahThresholds, ...(value?.settings?.ayahThresholds || {}) },
-      transitionThresholds: { ...base.settings.transitionThresholds, ...(value?.settings?.transitionThresholds || {}) }
+      ...storedSettings,
+      repetitionThresholds: {
+        ...base.settings.repetitionThresholds,
+        ...(legacyRepetitionThresholds || {}),
+        ...(value?.settings?.repetitionThresholds || {})
+      },
+      transitionCountThresholds: {
+        ...base.settings.transitionCountThresholds,
+        ...(legacyTransitionCountThresholds || {}),
+        ...(value?.settings?.transitionCountThresholds || {})
+      }
     }
   };
 }

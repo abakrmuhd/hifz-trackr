@@ -1,14 +1,13 @@
 import { JUZ_RANGES } from "./data/juz.js";
 import { describeDetailTarget } from "./data/detail-logic.js";
 import {
-  buildWeakItems,
-  getPageStrength,
-  getStrengthClass,
+  buildLowCountItems,
+  getPageRepetitionLevel,
   resolveActiveTarget
 } from "./data/metadata-logic.js";
 import {
-  buildAyahAriaLabel,
-  buildAyahRingState
+  buildRepetitionAriaLabel,
+  buildRepetitionRingState
 } from "./data/reader-halo-logic.js";
 import { resolveNavigationTarget } from "./data/navigation-logic.js";
 import {
@@ -16,13 +15,22 @@ import {
   mergeStoredState,
   savePersistedState
 } from "./data/storage.js?v=2";
+import {
+  applyDeveloperThresholdMode,
+  buildTripleActivationState,
+  getCountIncreaseSoundConfig,
+  normalizeThresholdProfile,
+  updateNumericSetting,
+  updateThresholdProfile
+} from "./data/settings-logic.js";
 import { shouldRegisterServiceWorker } from "./data/runtime-environment.js";
 import {
   buildTrackPages,
   clampTrackOffset,
   getTrackDirection,
   getTrackTargetPage,
-  shouldCommitTrackMove
+  shouldCommitTrackMove,
+  shouldStartTrackGesture
 } from "./reader/swipe-reveal.js?v=2026-06-22-page-turn-fill";
 
 const PAGE_COUNT = 604;
@@ -52,6 +60,7 @@ const defaultThresholds = {
 const defaultState = {
   ayahProgress: {},
   transitionProgress: {},
+  lastPage: 1,
   recentPages: [],
   ayahBookmarks: [],
   pageBookmarks: [],
@@ -60,10 +69,11 @@ const defaultState = {
     theme: "dark",
     sound: false,
     vibration: "auto",
+    developerMode: false,
     reviewQueueSize: 12,
     doubleTapWindow: 250,
-    ayahThresholds: { ...defaultThresholds },
-    transitionThresholds: { ...defaultThresholds }
+    repetitionThresholds: { ...defaultThresholds },
+    transitionCountThresholds: { ...defaultThresholds }
   }
 };
 
@@ -80,6 +90,8 @@ let pendingTap = null;
 let undoVisible = false;
 let detailTarget = null;
 let settingsOpen = false;
+let settingsError = null;
+let developerModeTapState = null;
 let review = null;
 let swipeStart = null;
 let suppressClickUntil = 0;
@@ -101,9 +113,15 @@ const PAGE_TURN_EASING = "cubic-bezier(.2, .8, .2, 1)";
 const TRACK_NEXT_TRANSFORM = "0%";
 const TRACK_CURRENT_TRANSFORM = "-33.333333%";
 const TRACK_PREVIOUS_TRANSFORM = "-66.666667%";
+const NUMERIC_SETTING_RULES = {
+  doubleTapWindow: { min: 150, max: 600, step: 25, label: "Double tap window" },
+  reviewQueueSize: { min: 4, max: 30, step: 1, label: "Review queue size" }
+};
 
 const icons = {
   back: `<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`,
+  previousPage: `<svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>`,
+  nextPage: `<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`,
   settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M19 14.5a1.8 1.8 0 0 0 .4 2l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7V21a2 2 0 1 1-4 0v-.4a1.8 1.8 0 0 0-1.1-1.7 1.8 1.8 0 0 0-2 .4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.7-1.1H3a2 2 0 1 1 0-4h.4a1.8 1.8 0 0 0 1.7-1.1 1.8 1.8 0 0 0-.4-2l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.8 1.8 0 0 0 2 .4 1.8 1.8 0 0 0 1.1-1.7V3a2 2 0 1 1 4 0v.4a1.8 1.8 0 0 0 1.1 1.7 1.8 1.8 0 0 0 2-.4l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.7 1.1H21a2 2 0 1 1 0 4h-.4a1.8 1.8 0 0 0-1.6 1Z"/></svg>`,
   star: `<svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>`,
   search: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
@@ -119,21 +137,24 @@ init().catch(showFatalError);
 async function init() {
   setBootStatus("Loading saved state...");
   state = await loadState();
+  state.lastPage = clampPage(state.lastPage);
   setBootStatus("Loading metadata...");
   document.documentElement.dataset.theme = state.settings.theme;
   const [mushafData, navigationData] = await Promise.all([
     fetchJson("/src/data/mushaf-metadata.json"),
     fetchJson("/src/data/navigation-metadata.json")
   ]);
-  setBootStatus("Loading first page...");
+  const initialPage = clampPage(state.lastPage);
+  setBootStatus(`Loading page ${initialPage}...`);
   metadata = {
     ...mushafData,
     surahs: navigationData.surahs,
     juz: navigationData.juz
   };
   surahVerseCounts = buildSurahVerseCounts(metadata.pages);
-  const initialTrack = await loadTrackPages(1);
+  const initialTrack = await loadTrackPages(initialPage);
   trackPages = initialTrack.data;
+  route = { screen: "reading", tab: route.tab, page: initialPage, target: null };
   setBootStatus("Binding events...");
   bindGlobalEvents();
   setBootStatus("Rendering...");
@@ -144,7 +165,16 @@ async function init() {
 }
 
 async function loadState() {
-  return loadPersistedState(defaultState);
+  const loaded = await loadPersistedState(defaultState);
+  loaded.settings.repetitionThresholds = normalizeThresholdProfile(
+    loaded.settings.repetitionThresholds,
+    defaultState.settings.repetitionThresholds
+  );
+  loaded.settings.transitionCountThresholds = normalizeThresholdProfile(
+    loaded.settings.transitionCountThresholds,
+    defaultState.settings.transitionCountThresholds
+  );
+  return loaded;
 }
 
 async function saveState() {
@@ -191,6 +221,7 @@ async function openPage(page, options = {}) {
   trackPages = nextTrack.data;
   trackState = { direction: null, dragging: false, offset: 0 };
   if (!options.silent) {
+    state.lastPage = route.page;
     state.recentPages = [route.page, ...state.recentPages.filter((item) => item !== route.page)].slice(0, 20);
     await saveState();
   }
@@ -218,7 +249,7 @@ function renderHome() {
           <h1>Tap Hifz</h1>
           <p>${summaryLine()}</p>
         </div>
-        <button class="icon-btn" data-action="settings" aria-label="Settings">${icons.settings}</button>
+        <button class="icon-btn" data-action="settings" data-dev-mode-trigger aria-label="Settings">${icons.settings}</button>
       </header>
       <label class="search-box">
         ${icons.search}
@@ -239,22 +270,22 @@ function renderHome() {
 }
 
 function renderProgress() {
-  const strip = JUZ_RANGES.map(([number, start, end]) => `<span class="mushaf-strip-segment ${rangeStrength(start, end)}" aria-hidden="true" title="Juz ${number}"></span>`).join("");
+  const strip = JUZ_RANGES.map(([number, start, end]) => `<span class="mushaf-strip-segment ${rangeRepetitionLevel(start, end)}" aria-hidden="true" title="Juz ${number}"></span>`).join("");
   const juzItems = JUZ_RANGES.map(([number, start, end]) => {
-    const strength = rangeStrength(start, end);
-    return `<button class="juz-cell ${strength} ${number === selectedJuz ? "selected" : ""}" data-juz="${number}" aria-label="Juz ${number}">${number}</button>`;
+    const repetitionLevel = rangeRepetitionLevel(start, end);
+    return `<button class="juz-cell ${repetitionLevel} ${number === selectedJuz ? "selected" : ""}" data-juz="${number}" aria-label="Juz ${number}">${number}</button>`;
   }).join("");
   const current = JUZ_RANGES.find(([number]) => number === selectedJuz);
   const pages = [];
   for (let page = current[1]; page <= current[2]; page += 1) {
-    pages.push(`<button class="page-cell ${pageStrength(page)}" data-page="${page}">${page}</button>`);
+    pages.push(`<button class="page-cell ${pageRepetitionLevel(page)}" data-page="${page}">${page}</button>`);
   }
-  const weakItems = getWeakItems().slice(0, state.settings.reviewQueueSize);
+  const lowCountItems = getLowCountItems().slice(0, state.settings.reviewQueueSize);
   return `
     <div class="section-head">
       <div><h2>Whole Mushaf By Juz</h2><p>${progressPrompt()}</p></div>
-      <button class="primary-btn ${weakItems.length ? "" : "quiet"}" data-action="start-review" ${weakItems.length ? "" : "disabled"}>
-        ${weakItems.length ? "Start weak review" : "No weak items to review"}
+      <button class="primary-btn ${lowCountItems.length ? "" : "quiet"}" data-action="start-review" ${lowCountItems.length ? "" : "disabled"}>
+        ${lowCountItems.length ? "Start low-count review" : "No low-count items to review"}
       </button>
     </div>
     <div class="progress-card">
@@ -263,21 +294,22 @@ function renderProgress() {
       <div class="juz-grid" dir="rtl">${juzItems}</div>
       <div class="selected-head">
         <strong class="section-caption">Page</strong>
-        <span class="summary-pills"><span class="small-pill weak">${countPages(current, "weak")} weak</span><span class="small-pill strong">${countStrongPages(current)} strong</span></span>
+        <span class="summary-pills"><span class="small-pill weak">${countPages(current, "weak")} low count</span><span class="small-pill strong">${countHighCountPages(current)} high count</span></span>
       </div>
       <div class="page-grid" dir="rtl">${pages.join("")}</div>
     </div>
     <h3 class="label">Practice Next</h3>
     <div class="queue-list">
-      ${weakItems.length ? weakItems.map(renderQueueItem).join("") : `<p class="empty-state">Open a page and tap ayah numbers to start tracking.</p>`}
+      ${lowCountItems.length ? lowCountItems.map(renderQueueItem).join("") : `<p class="empty-state">Open a page and tap ayah numbers to start tracking.</p>`}
     </div>
   `;
 }
 
 function renderQueueItem(item) {
+  const countLabel = item.kind === "Ayah" ? "repetition count" : "transition count";
   return `
     <button class="list-row" data-review-target="${encodeURIComponent(JSON.stringify(item))}">
-      <span><strong>${item.label}</strong><small>Page ${item.page}, count ${item.count}</small></span>
+      <span><strong>${item.label}</strong><small>Page ${item.page}, ${countLabel} ${item.count}</small></span>
       <span class="type-pill">${item.kind}</span>
     </button>
   `;
@@ -381,11 +413,9 @@ function renderReading() {
         <div class="reading-meta">${review ? `Review · ${review.index + 1} of ${review.queue.length}` : `Page ${route.page} · ${metadata.pages[String(route.page)]?.label || ""}`}</div>
         <div class="top-actions">
           <button class="icon-btn ${pageBookmarked ? "active" : ""}" data-action="toggle-page-bookmark" aria-label="Toggle page bookmark">${icons.bookmark}</button>
-          <button class="icon-btn" data-action="settings" aria-label="Settings">${icons.settings}</button>
+          <button class="icon-btn" data-action="settings" data-dev-mode-trigger aria-label="Settings">${icons.settings}</button>
         </div>
       </header>
-      <button class="sr-only" data-action="previous-page">Previous page</button>
-      <button class="sr-only" data-action="next-page">Next page</button>
       <section class="page-shell ${route.page % 2 ? "odd" : "even"}" aria-label="Mushaf page ${route.page}">
         <div class="page-track" data-track-direction="${trackState.direction || ""}">
           ${renderPageSlot(trackPages.next, pageNumbers.next, "next", true)}
@@ -393,8 +423,11 @@ function renderReading() {
           ${renderPageSlot(trackPages.previous, pageNumbers.previous, "previous", true)}
         </div>
       </section>
-      <p class="swipe-hint">Swipe left for previous page. Swipe right for next page.</p>
-      ${undoVisible ? `<button class="floating-undo" data-action="undo" aria-label="Undo last count">${icons.undo}</button>` : ""}
+      <nav class="reader-bottom-nav" aria-label="Page navigation">
+        <button class="reader-bottom-btn next" data-action="next-page" aria-label="Next page" ${pageNumbers.next ? "" : "disabled"}>${icons.nextPage}</button>
+        <button class="reader-bottom-btn previous" data-action="previous-page" aria-label="Previous page" ${pageNumbers.previous ? "" : "disabled"}>${icons.previousPage}</button>
+      </nav>
+      ${undoVisible ? `<button class="floating-undo" data-action="undo" aria-label="Undo last repetition count">${icons.undo}</button>` : ""}
       ${review ? renderReviewBar() : ""}
     </main>
   `;
@@ -435,18 +468,18 @@ function renderWord(word, activeTarget, options = {}) {
   const previous = options.previousAyahMap?.get(key) || null;
   const pageNumber = options.pageNumber || route.page;
   const transition = previous ? transitionKey(pageNumber, previous, key) : null;
-  const ringState = buildAyahRingState({
-    ayahCount: getAyahCount(key),
+  const ringState = buildRepetitionRingState({
+    repetitionCount: getRepetitionCount(key),
     transitionCount: transition ? getTransitionCount(transition) : null,
-    ayahThresholds: state.settings.ayahThresholds,
-    transitionThresholds: state.settings.transitionThresholds
+    repetitionThresholds: state.settings.repetitionThresholds,
+    transitionCountThresholds: state.settings.transitionCountThresholds
   });
   const ayahActive = activeTarget?.kind === "Ayah" && activeTarget.key === key;
   const transitionActive = activeTarget?.kind === "Transition" && activeTarget.key === transition;
   const ayahClass = [
     "ayah-mark",
-    ringState.ayahStrength,
-    ringState.hasTransitionRing ? `transition-${ringState.transitionStrength}` : "",
+    ringState.repetitionCountLevel,
+    ringState.hasTransitionRing ? `transition-count-${ringState.transitionCountLevel}` : "",
     transitionActive ? "transition-target" : "",
     ayahActive ? "target" : ""
   ].filter(Boolean).join(" ");
@@ -459,10 +492,10 @@ function renderWord(word, activeTarget, options = {}) {
       <span class="${ayahClass}"${transitionArcStyle} aria-hidden="true">${match[2]}</span>
     `;
   }
-  const ariaLabel = buildAyahAriaLabel({
+  const ariaLabel = buildRepetitionAriaLabel({
     ayahLabel: labelAyah(key),
-    ayahStrength: ringState.ayahStrength,
-    transitionStrength: ringState.transitionStrength
+    repetitionCountLevel: ringState.repetitionCountLevel,
+    transitionCountLevel: ringState.transitionCountLevel
   });
   return `
     <span class="qword">${escapeHtml(match[1])}</span>
@@ -487,7 +520,7 @@ function renderReviewBar() {
 function renderDetails() {
   const detail = describeDetailTarget(detailTarget, {
     settings: state.settings,
-    getAyahCount,
+    getRepetitionCount,
     getTransitionCount,
     labelAyah,
     labelTransition,
@@ -507,7 +540,7 @@ function renderDetails() {
               <div class="detail-block">
                 <div class="detail-block-copy">
                   <div class="detail-block-head">
-                    <span class="small-pill ${detail.transitionOnly.strength}">${titleCase(detail.transitionOnly.strength)}</span>
+                    <span class="small-pill ${detail.transitionOnly.countLevel}">${titleCase(detail.transitionOnly.countLevel)}</span>
                     <span class="detail-metric-label">${detail.transitionOnly.label}</span>
                   </div>
                   <div class="detail-count-row">
@@ -528,7 +561,7 @@ function renderDetails() {
         <div class="detail-transition-row">
           <div class="detail-transition-copy">
             <div class="detail-transition-head">
-              <span class="small-pill ${detail.transition.strength}">${titleCase(detail.transition.strength)}</span>
+              <span class="small-pill ${detail.transition.countLevel}">${titleCase(detail.transition.countLevel)}</span>
               <span class="detail-metric-label">${detail.transition.label}</span>
             </div>
             <div class="detail-count-row">
@@ -562,12 +595,12 @@ function renderDetails() {
             <div class="detail-block">
               <div class="detail-block-copy">
                 <div class="detail-block-head">
-                  <span class="small-pill ${detail.ayah.strength}">${titleCase(detail.ayah.strength)}</span>
+                  <span class="small-pill ${detail.ayah.countLevel}">${titleCase(detail.ayah.countLevel)}</span>
                   <span class="detail-metric-label">${detail.ayah.label}</span>
                 </div>
                 <div class="detail-count-row">
                   ${renderCountValue(detail.ayah.count, detail.ayah.target)}
-                  <button class="detail-mini-action secondary-btn" data-action="decrement-ayah-detail" aria-label="Decrease ayah count">-</button>
+                  <button class="detail-mini-action secondary-btn" data-action="decrement-repetition-detail" aria-label="Decrease repetition count">-</button>
                 </div>
               </div>
             </div>
@@ -584,19 +617,43 @@ function renderSettings() {
   return `
     <div class="modal-backdrop" data-action="close-settings">
       <section class="modal settings-modal" role="dialog" aria-modal="true" aria-label="Settings">
-        <header class="modal-head"><strong>Settings</strong><button class="icon-btn small" data-action="close-settings" aria-label="Close">${icons.close}</button></header>
+        <header class="modal-head"><strong data-dev-mode-trigger>Settings</strong><button class="icon-btn small" data-action="close-settings" aria-label="Close">${icons.close}</button></header>
+        ${settingsError ? `<p class="settings-error" role="alert">${escapeHtml(settingsError)}</p>` : ""}
         <h3 class="label">Appearance</h3>
         <div class="setting-row"><span>Dark mode<small>Default on</small></span><button class="toggle ${s.theme === "dark" ? "on" : ""}" data-setting="theme" role="switch" aria-checked="${s.theme === "dark"}"></button></div>
         <h3 class="label">Feedback</h3>
         <div class="setting-row"><span>Sound<small>Default off</small></span><button class="toggle ${s.sound ? "on" : ""}" data-setting="sound" role="switch" aria-checked="${s.sound}"></button></div>
         <div class="setting-row"><span>Vibration<small>Default on when supported</small></span><button class="toggle ${s.vibration !== false ? "on" : ""}" data-setting="vibration" role="switch" aria-checked="${s.vibration !== false}"></button></div>
         <label class="setting-row"><span>Double tap window<small>Gesture timing</small></span><input data-setting-number="doubleTapWindow" type="number" min="150" max="600" step="25" value="${s.doubleTapWindow}" /></label>
-        <label class="setting-row"><span>Review queue size<small>Weak items per session</small></span><input data-setting-number="reviewQueueSize" type="number" min="4" max="30" step="1" value="${s.reviewQueueSize}" /></label>
+        <label class="setting-row"><span>Review queue size<small>Low-count items per session</small></span><input data-setting-number="reviewQueueSize" type="number" min="4" max="30" step="1" value="${s.reviewQueueSize}" /></label>
+        <h3 class="label">Count Thresholds</h3>
+        ${renderThresholdSettings("Repetition count", "repetitionThresholds", s.repetitionThresholds)}
+        ${renderThresholdSettings("Transition count", "transitionCountThresholds", s.transitionCountThresholds)}
         <h3 class="label">Backup</h3>
         <div class="actions"><button class="secondary-btn" data-action="export-json">${icons.export} Export JSON</button><label class="secondary-btn file-btn">Import JSON<input type="file" accept="application/json" data-action="import-json" /></label></div>
         <button class="danger-btn full" data-action="reset-all">Reset all data</button>
       </section>
     </div>
+  `;
+}
+
+function renderThresholdSettings(title, profileKey, profile) {
+  return `
+    <fieldset class="threshold-group">
+      <legend>${title}</legend>
+      <label class="threshold-field">
+        <span>Weak ends</span>
+        <input data-threshold-profile="${profileKey}" data-threshold-key="weakMax" type="number" min="1" max="999" step="1" value="${profile.weakMax}" />
+      </label>
+      <label class="threshold-field">
+        <span>Building ends</span>
+        <input data-threshold-profile="${profileKey}" data-threshold-key="buildingMax" type="number" min="2" max="999" step="1" value="${profile.buildingMax}" />
+      </label>
+      <label class="threshold-field">
+        <span>Strong ends</span>
+        <input data-threshold-profile="${profileKey}" data-threshold-key="strongMax" type="number" min="3" max="999" step="1" value="${profile.strongMax}" />
+      </label>
+    </fieldset>
   `;
 }
 
@@ -653,6 +710,11 @@ function bindScreenEvents() {
     }, true);
     pageShell.addEventListener("pointerdown", (event) => {
       if (pageNavigationInFlight) return;
+      if (!shouldStartTrackGesture({
+        pointerType: event.pointerType,
+        startedOnSelectableText: Boolean(event.target.closest?.(".mushaf-line"))
+      })) return;
+      event.preventDefault();
       swipeStart = {
         x: event.clientX,
         y: event.clientY,
@@ -661,6 +723,7 @@ function bindScreenEvents() {
         dragging: false
       };
       trackState = { direction: null, dragging: false, offset: 0 };
+      pageShell.classList.add("swipe-armed");
       pageShell.setPointerCapture?.(event.pointerId);
     });
     pageShell.addEventListener("pointermove", async (event) => {
@@ -684,6 +747,7 @@ function bindScreenEvents() {
       const dragOffset = swipeStart.offset || 0;
       const didDrag = swipeStart.dragging;
       swipeStart = null;
+      pageShell.classList.remove("swipe-armed");
       pageShell.releasePointerCapture?.(event.pointerId);
       const ayahMarker = !didDrag ? resolveAyahMarkerAtPoint(event.clientX, event.clientY) : null;
       if (ayahMarker) {
@@ -699,9 +763,14 @@ function bindScreenEvents() {
     });
     pageShell.addEventListener("pointercancel", () => {
       swipeStart = null;
+      pageShell.classList.remove("swipe-armed");
       resetTrackState(true);
     });
   }
+
+  app.querySelectorAll("[data-dev-mode-trigger]").forEach((el) => {
+    el.addEventListener("click", () => handleDeveloperModeTrigger());
+  });
 
   app.querySelectorAll("[data-action]").forEach((el) => {
     el.addEventListener("click", (event) => handleAction(event, el));
@@ -713,11 +782,39 @@ function bindScreenEvents() {
     if (key === "theme") state.settings.theme = state.settings.theme === "dark" ? "light" : "dark";
     if (key === "sound") state.settings.sound = !state.settings.sound;
     if (key === "vibration") state.settings.vibration = state.settings.vibration === false ? "auto" : false;
+    settingsError = null;
     await saveState();
     render();
   }));
   app.querySelectorAll("[data-setting-number]").forEach((input) => input.addEventListener("change", async () => {
-    state.settings[input.dataset.settingNumber] = Number(input.value);
+    const key = input.dataset.settingNumber;
+    const rule = NUMERIC_SETTING_RULES[key];
+    if (!rule) return;
+    const result = updateNumericSetting(state.settings[key], input.value, rule);
+    if (result.error) {
+      settingsError = result.error;
+      render();
+      return;
+    }
+    state.settings[key] = result.value;
+    settingsError = null;
+    await saveState();
+    render();
+  }));
+  app.querySelectorAll("[data-threshold-profile]").forEach((input) => input.addEventListener("change", async () => {
+    const profileKey = input.dataset.thresholdProfile;
+    const thresholdKey = input.dataset.thresholdKey;
+    if (!["repetitionThresholds", "transitionCountThresholds"].includes(profileKey)) return;
+
+    const result = updateThresholdProfile(state.settings[profileKey], thresholdKey, input.value);
+    if (result.error) {
+      settingsError = result.error;
+      render();
+      return;
+    }
+
+    state.settings[profileKey] = result.profile;
+    settingsError = null;
     await saveState();
     render();
   }));
@@ -751,7 +848,7 @@ async function handleAction(event, el) {
   if (action === "toggle-page-bookmark") togglePageBookmark();
   if (action === "undo") undoLast();
   if (action === "decrement-detail") mutateDetail(-1);
-  if (action === "decrement-ayah-detail") mutateSpecificDetail("ayah", -1);
+  if (action === "decrement-repetition-detail") mutateSpecificDetail("ayah", -1);
   if (action === "decrement-transition-detail") mutateSpecificDetail("transition", -1);
   if (action === "reset-detail") resetDetail();
   if (action === "toggle-ayah-bookmark") toggleAyahBookmark();
@@ -761,7 +858,17 @@ async function handleAction(event, el) {
   if (action === "finish-review") { review = null; goHome("progress"); return; }
   if (action === "export-json") exportJson();
   if (action === "reset-all") resetAll();
-  if (!["previous-page", "next-page", "decrement-ayah-detail", "decrement-transition-detail"].includes(action)) render();
+  if (!["previous-page", "next-page", "decrement-repetition-detail", "decrement-transition-detail"].includes(action)) render();
+}
+
+async function handleDeveloperModeTrigger() {
+  developerModeTapState = buildTripleActivationState(developerModeTapState, Date.now(), 250);
+  if (!developerModeTapState.activated) return;
+
+  state = applyDeveloperThresholdMode(state, defaultThresholds);
+  settingsError = null;
+  await saveState();
+  render();
 }
 
 async function moveTrack(direction, options = {}) {
@@ -801,6 +908,7 @@ async function moveTrack(direction, options = {}) {
     const loaded = await loadTrackPages(targetPage);
     trackPages = loaded.data;
     trackState = { direction: null, dragging: false, offset: 0 };
+    state.lastPage = route.page;
     state.recentPages = [route.page, ...state.recentPages.filter((item) => item !== route.page)].slice(0, 20);
     await saveState();
     render();
@@ -833,7 +941,7 @@ function handleAyahTap(key, marker = null) {
 }
 
 async function logAyah(key) {
-  state.ayahProgress[key] = { repetitionCount: getAyahCount(key) + 1 };
+  state.ayahProgress[key] = { repetitionCount: getRepetitionCount(key) + 1 };
   addEvent("ayah-increment", { ayahKey: key, delta: 1, page: route.page });
   markReviewComplete("Ayah", key);
   await postMutationFeedback(key);
@@ -854,11 +962,12 @@ async function postMutationFeedback(key) {
     ? `[data-ayah="${CSS.escape(key.split("|")[2])}"]`
     : `[data-ayah="${CSS.escape(key)}"]`;
   const marker = app.querySelector(selector);
-  const count = key.includes("|") ? getTransitionCount(key) : getAyahCount(key);
+  const count = key.includes("|") ? getTransitionCount(key) : getRepetitionCount(key);
   if (marker) {
     restartAyahPulse(marker);
-    spawnAyahCountPop(marker, count, app);
+    spawnRepetitionCountPop(marker, count, app);
   }
+  playCountIncreaseSound();
   if (navigator.vibrate && state.settings.vibration !== false) navigator.vibrate(20);
 }
 
@@ -884,10 +993,44 @@ function playAyahTapFeedback(marker) {
   );
 }
 
-function spawnAyahCountPop(marker, count, container) {
+function playCountIncreaseSound() {
+  const config = getCountIncreaseSoundConfig(state.settings);
+  if (!config || typeof AudioContext === "undefined") return;
+
+  const context = new AudioContext();
+  const now = context.currentTime;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+
+  oscillator.type = config.wave;
+  oscillator.frequency.setValueAtTime(config.frequency, now);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(config.gain, now + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + config.duration);
+  oscillator.connect(gain).connect(context.destination);
+  oscillator.start(now);
+  oscillator.stop(now + config.duration + 0.012);
+
+  if (config.secondFrequency) {
+    const second = context.createOscillator();
+    const secondGain = context.createGain();
+    second.type = "sine";
+    second.frequency.setValueAtTime(config.secondFrequency, now + 0.035);
+    secondGain.gain.setValueAtTime(0.0001, now + 0.035);
+    secondGain.gain.exponentialRampToValueAtTime(config.gain * 0.72, now + 0.05);
+    secondGain.gain.exponentialRampToValueAtTime(0.0001, now + config.duration + 0.045);
+    second.connect(secondGain).connect(context.destination);
+    second.start(now + 0.035);
+    second.stop(now + config.duration + 0.055);
+  }
+
+  setTimeout(() => context.close().catch(() => {}), Math.ceil((config.duration + 0.08) * 1000));
+}
+
+function spawnRepetitionCountPop(marker, count, container) {
   const rect = marker.getBoundingClientRect();
   const pop = document.createElement("span");
-  pop.className = "ayah-count-pop";
+  pop.className = "repetition-count-pop";
   pop.textContent = String(count);
   pop.setAttribute("aria-hidden", "true");
   pop.style.left = `${rect.left + rect.width / 2}px`;
@@ -904,7 +1047,7 @@ async function undoLast() {
   const last = [...state.practiceEvents].reverse().find((event) => event.delta && !event.undone);
   if (!last) return;
   last.undone = true;
-  if (last.ayahKey) state.ayahProgress[last.ayahKey] = { repetitionCount: Math.max(0, getAyahCount(last.ayahKey) - last.delta) };
+  if (last.ayahKey) state.ayahProgress[last.ayahKey] = { repetitionCount: Math.max(0, getRepetitionCount(last.ayahKey) - last.delta) };
   if (last.transitionKey) state.transitionProgress[last.transitionKey] = { repetitionCount: Math.max(0, getTransitionCount(last.transitionKey) - last.delta) };
   addEvent("undo", { page: route.page, reversedEventId: last.id, delta: -last.delta, ayahKey: last.ayahKey, transitionKey: last.transitionKey });
   undoVisible = false;
@@ -915,7 +1058,7 @@ async function undoLast() {
 function mutateDetail(delta) {
   if (!detailTarget) return;
   if (detailTarget.kind === "ayah") {
-    state.ayahProgress[detailTarget.key] = { repetitionCount: Math.max(0, getAyahCount(detailTarget.key) + delta) };
+    state.ayahProgress[detailTarget.key] = { repetitionCount: Math.max(0, getRepetitionCount(detailTarget.key) + delta) };
     addEvent("decrement", { ayahKey: detailTarget.key, delta, page: route.page });
   } else {
     state.transitionProgress[detailTarget.key] = { repetitionCount: Math.max(0, getTransitionCount(detailTarget.key) + delta) };
@@ -928,7 +1071,7 @@ async function mutateSpecificDetail(kind, delta) {
   if (!detailTarget) return;
 
   if (kind === "ayah" && detailTarget.kind === "ayah") {
-    const currentCount = getAyahCount(detailTarget.key);
+    const currentCount = getRepetitionCount(detailTarget.key);
     const nextCount = Math.max(0, currentCount + delta);
     if (nextCount === currentCount) return;
     state.ayahProgress[detailTarget.key] = { repetitionCount: nextCount };
@@ -956,9 +1099,9 @@ async function mutateSpecificDetail(kind, delta) {
 function resetDetail() {
   if (!detailTarget) return;
   if (detailTarget.kind === "ayah") {
-    const ayahCount = getAyahCount(detailTarget.key);
+    const repetitionCount = getRepetitionCount(detailTarget.key);
     state.ayahProgress[detailTarget.key] = { repetitionCount: 0 };
-    addEvent("reset", { ayahKey: detailTarget.key, delta: -ayahCount, page: route.page });
+    addEvent("reset", { ayahKey: detailTarget.key, delta: -repetitionCount, page: route.page });
   } else {
     const count = getTransitionCount(detailTarget.key);
     state.transitionProgress[detailTarget.key] = { repetitionCount: 0 };
@@ -995,7 +1138,7 @@ function removeAyahBookmark(key) {
 }
 
 function startReview() {
-  const queue = getWeakItems().slice(0, state.settings.reviewQueueSize);
+  const queue = getLowCountItems().slice(0, state.settings.reviewQueueSize);
   if (!queue.length) return;
   review = { queue, index: 0, completed: 0, skipped: 0, done: false };
   openPage(queue[0].page, { target: queue[0].key });
@@ -1029,41 +1172,41 @@ function nextReview() {
   openPage(review.queue[review.index].page, { target: review.queue[review.index].key });
 }
 
-function getWeakItems() {
-  return buildWeakItems({
+function getLowCountItems() {
+  return buildLowCountItems({
     ayahProgress: state.ayahProgress,
     transitionProgress: state.transitionProgress,
     metadata,
-    ayahThresholds: state.settings.ayahThresholds,
-    transitionThresholds: state.settings.transitionThresholds,
+    repetitionThresholds: state.settings.repetitionThresholds,
+    transitionCountThresholds: state.settings.transitionCountThresholds,
     labelAyah,
     labelTransition
   });
 }
 
-function rangeStrength(start, end) {
+function rangeRepetitionLevel(start, end) {
   const levels = [];
-  for (let page = start; page <= end; page += 1) levels.push(pageStrength(page));
-  return weakest(levels);
+  for (let page = start; page <= end; page += 1) levels.push(pageRepetitionLevel(page));
+  return lowestCountLevel(levels);
 }
 
-function pageStrength(page) {
-  return getPageStrength(page, metadata, state.ayahProgress, state.settings.ayahThresholds);
+function pageRepetitionLevel(page) {
+  return getPageRepetitionLevel(page, metadata, state.ayahProgress, state.settings.repetitionThresholds);
 }
 
 function countPages(range, target) {
   let count = 0;
-  for (let page = range[1]; page <= range[2]; page += 1) if (pageStrength(page) === target) count += 1;
+  for (let page = range[1]; page <= range[2]; page += 1) if (pageRepetitionLevel(page) === target) count += 1;
   return count;
 }
 
-function countStrongPages(range) {
+function countHighCountPages(range) {
   let count = 0;
-  for (let page = range[1]; page <= range[2]; page += 1) if (["strong", "mastered"].includes(pageStrength(page))) count += 1;
+  for (let page = range[1]; page <= range[2]; page += 1) if (["strong", "mastered"].includes(pageRepetitionLevel(page))) count += 1;
   return count;
 }
 
-function weakest(levels) {
+function lowestCountLevel(levels) {
   const rank = { empty: 0, weak: 1, building: 2, strong: 3, mastered: 4 };
   return levels.sort((a, b) => rank[a] - rank[b])[0] || "empty";
 }
@@ -1134,6 +1277,7 @@ function applyTrackState() {
 }
 
 function resetTrackState(animateBack = false) {
+  app.querySelector(".page-shell")?.classList.remove("swipe-armed");
   const pageTrack = app.querySelector(".page-track");
   const offset = trackState.offset;
   trackState = { direction: null, dragging: false, offset: 0 };
@@ -1159,7 +1303,7 @@ function cancelPageGesture() {
   resetTrackState(true);
 }
 
-function getAyahCount(key) {
+function getRepetitionCount(key) {
   return state.ayahProgress[key]?.repetitionCount || 0;
 }
 
@@ -1169,10 +1313,6 @@ function getTransitionCount(key) {
 
 function transitionKey(page, from, to) {
   return `${page}|${from}|${to}`;
-}
-
-function strengthClass(count, thresholds) {
-  return getStrengthClass(count, thresholds);
 }
 
 function parseJump(value) {
@@ -1282,6 +1422,7 @@ function exportJson() {
 async function importJson(file) {
   if (!file) return;
   state = mergeStoredState(defaultState, JSON.parse(await file.text()));
+  state.lastPage = clampPage(state.lastPage);
   await saveState();
   settingsOpen = false;
   render();

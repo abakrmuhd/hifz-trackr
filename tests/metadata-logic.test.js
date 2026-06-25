@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildLowCountItems,
   buildMetadataFromPages,
-  buildWeakItems,
-  getPageStrength,
+  getPageRepetitionLevel,
   resolveActiveTarget
 } from "../src/data/metadata-logic.js";
 
@@ -44,7 +44,7 @@ test("buildMetadataFromPages maps ayahs and transitions to exact pages", () => {
   assert.equal(metadata.ayahToPage["2:2"], 2);
 });
 
-test("getPageStrength only uses ayahs that belong to the requested page", () => {
+test("getPageRepetitionLevel only uses ayahs that belong to the requested page", () => {
   const metadata = buildMetadataFromPages(samplePages, juzRanges);
   const thresholds = { weakMax: 9, buildingMax: 19, strongMax: 39 };
   const ayahProgress = {
@@ -54,24 +54,24 @@ test("getPageStrength only uses ayahs that belong to the requested page", () => 
     "2:2": { repetitionCount: 30 }
   };
 
-  assert.equal(getPageStrength(1, metadata, ayahProgress, thresholds), "weak");
-  assert.equal(getPageStrength(2, metadata, ayahProgress, thresholds), "strong");
+  assert.equal(getPageRepetitionLevel(1, metadata, ayahProgress, thresholds), "weak");
+  assert.equal(getPageRepetitionLevel(2, metadata, ayahProgress, thresholds), "strong");
 });
 
-test("buildWeakItems resolves ayah page by exact ayahToPage mapping", () => {
+test("buildLowCountItems resolves ayah page by exact ayahToPage mapping", () => {
   const metadata = buildMetadataFromPages(samplePages, juzRanges);
-  const weakItems = buildWeakItems({
+  const lowCountItems = buildLowCountItems({
     metadata,
     ayahProgress: { "2:2": { repetitionCount: 1 } },
     transitionProgress: {},
-    ayahThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 },
-    transitionThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 },
+    repetitionThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 },
+    transitionCountThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 },
     labelAyah: (key) => key,
     labelTransition: (key) => key
   });
 
-  assert.equal(weakItems[0].page, 2);
-  assert.equal(weakItems[0].key, "2:2");
+  assert.equal(lowCountItems[0].page, 2);
+  assert.equal(lowCountItems[0].key, "2:2");
 });
 
 test("resolveActiveTarget prefers review target and falls back to route target", () => {
