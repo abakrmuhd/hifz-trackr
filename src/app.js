@@ -23,6 +23,7 @@ import {
   updateNumericSetting,
   updateThresholdProfile
 } from "./data/settings-logic.js";
+import { getLineFitClass } from "./data/mushaf-line-fit.js?v=2026-06-26-density-fit-all-3";
 import { shouldRegisterServiceWorker } from "./data/runtime-environment.js";
 import {
   buildTrackPages,
@@ -452,7 +453,8 @@ function renderLine(line, activeTarget, options = {}) {
   if (line.type === "surah-header") return `<div class="surah-header">${decodeText(line.text)}</div>`;
   if (line.type === "basmala") return `<div class="basmala">${decodeText(line.text || line.qpcV2 || "")}</div>`;
   const words = line.words || [];
-  const fit = words.length > 13 ? "fit-72" : words.length > 11 ? "fit-78" : words.length > 9 ? "fit-84" : words.length > 7 ? "fit-89" : words.length > 6 ? "fit-93" : "";
+  const lineLength = words.reduce((total, word) => total + [...decodeText(word.word)].length, 0);
+  const fit = getLineFitClass(words.length, lineLength);
   const parts = words.map((word) => renderWord(word, activeTarget, options)).join("");
   const unjustify = (options.pageNumber || route.page) <= 2 ? "unjustified" : "";
   const basmalaLine = options.pageNumber === 1 && line.verseRange === "1:1-1:1" ? "basmala-line" : "";

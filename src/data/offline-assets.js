@@ -1,17 +1,18 @@
-export const CACHE_VERSION = "tap-hifz-v34";
+export const CACHE_VERSION = "tap-hifz-v40";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-06-25-one-line-surah-header",
-  "/src/styles.css?v=2026-06-25-one-line-surah-header"
+  "/src/app.js?v=2026-06-26-density-fit-all-3",
+  "/src/styles.css?v=2026-06-26-density-fit-all-3"
 ];
 
 export const DATA_ASSETS = [
   "/src/data/juz.js",
   "/src/data/metadata-logic.js",
+  "/src/data/mushaf-line-fit.js?v=2026-06-26-density-fit-all-3",
   "/src/data/mushaf-metadata.json",
   "/src/data/navigation-logic.js",
   "/src/data/navigation-metadata.json",

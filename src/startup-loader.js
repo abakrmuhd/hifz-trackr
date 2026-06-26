@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const STARTUP_ASSET_VERSION = "2026-06-25-one-line-surah-header";
+const STARTUP_ASSET_VERSION = "2026-06-26-density-fit-all-3";
 const LOCALHOST_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function escapeHtml(text) {

@@ -706,6 +706,10 @@ small {
 .fit-84 { font-size: .84em; }
 .fit-78 { font-size: .78em; }
 .fit-72 { font-size: .72em; }
+.fit-68 { font-size: .68em; }
+.fit-64 { font-size: .64em; }
+.fit-58 { font-size: .58em; }
+.fit-52 { font-size: .52em; }
 
 .qword {
   min-width: max-content;
