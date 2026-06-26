@@ -105,3 +105,13 @@ test("app keeps ayah marker interactions on QCF4 marker elements", () => {
   assert.match(appSource, /\.page-slot\.current \.ayah-marker\[data-ayah\]/);
   assert.match(appSource, /buildQcf4AyahMarkerAttrs/);
 });
+
+test("styles define Muhaffidh-like QCF4 page metrics", () => {
+  const styles = fs.readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /@font-face[\s\S]*font-family:\s*["']?QCF2000/);
+  assert.match(styles, /mushaf-page\s*\{[\s\S]*width:\s*512px/);
+  assert.match(styles, /mushaf-page\s*\{[\s\S]*height:\s*910px/);
+  assert.match(styles, /\.ayah-chars\s*\{[\s\S]*letter-spacing:\s*-2\.1px/);
+  assert.match(styles, /\.ayah-chars\s*\{[\s\S]*white-space:\s*nowrap/);
+  assert.match(styles, /\.ayah-chars\s+\.space\s*\{[\s\S]*font-size:\s*2px/);
+});
