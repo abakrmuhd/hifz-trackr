@@ -6,6 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..");
 const fontDir = path.join(root, "public", "fonts", "qcf4");
+const sourcePath = path.join(root, "public", "qcf4-source", "qcf4-hafs-words.json");
 
 const requiredFonts = [
   "QCF4_QBSML.woff2",
@@ -21,5 +22,16 @@ for (const font of requiredFonts) {
   await assertFile(path.join(fontDir, font));
 }
 
+await assertFile(sourcePath);
+const source = JSON.parse(await fs.readFile(sourcePath, "utf8"));
+const rows = Array.isArray(source.rows) ? source.rows : [];
+const pages = new Set(rows.map((row) => row.page));
+const types = new Set(rows.map((row) => row.type));
+
+if (pages.size !== 604) throw new Error(`Expected 604 QCF4 source pages, found ${pages.size}`);
+for (const type of ["word", "ayah-marker", "basmalah", "surah"]) {
+  if (!types.has(type)) throw new Error(`Missing QCF4 source row type: ${type}`);
+}
+
 console.log(`Validated ${requiredFonts.length} QCF4 font files`);
-console.log("Next gate: add exact QCF4 Hafs mapping source before running generate:qcf4-pages");
+console.log(`Validated ${rows.length} QCF4 source rows across ${pages.size} pages`);
