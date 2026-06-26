@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   buildQcf4PreviousAyahMap,
   collectQcf4AyahKeys,
@@ -14,7 +15,15 @@ const page = {
     {
       type: "text",
       ayahGroups: [
-        { key: "1:1", surah: 1, ayah: 1, items: [{ type: "word", glyph: "b" }] },
+        {
+          key: "1:1",
+          surah: 1,
+          ayah: 1,
+          items: [
+            { type: "word", glyph: "b" },
+            { type: "ayah-marker", glyph: "c" }
+          ]
+        },
         { key: "1:2", surah: 1, ayah: 2, items: [{ type: "word", glyph: "c" }] }
       ]
     },
@@ -67,4 +76,32 @@ test("renderQcf4Page omits interactive ayah attrs for inert pages", () => {
   });
 
   assert.doesNotMatch(html, /data-ayah="1:1"/);
+});
+
+test("renderQcf4Page can attach interactive attrs to ayah markers", () => {
+  const html = renderQcf4Page(page, {
+    inert: false,
+    buildAyahAttrs: () => "",
+    buildAyahMarkerClass: () => "ayah-marker ayah-mark weak",
+    buildAyahMarkerAttrs: (key) => `data-ayah="${key}" role="button"`,
+    buildGroupClass: () => "ayah-group"
+  });
+
+  assert.match(html, /class="ayah-marker ayah-mark weak"/);
+  assert.match(html, /data-ayah="1:1"/);
+  assert.match(html, /role="button"/);
+});
+
+test("app wires QCF4 pages into the reader with legacy fallback", () => {
+  const appSource = fs.readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
+  assert.match(appSource, /fetchQcf4Page/);
+  assert.match(appSource, /renderQcf4Page/);
+  assert.match(appSource, /qcf4PageCache/);
+  assert.match(appSource, /qcf4PageData \|\| legacyPageData/);
+});
+
+test("app keeps ayah marker interactions on QCF4 marker elements", () => {
+  const appSource = fs.readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
+  assert.match(appSource, /\.page-slot\.current \.ayah-marker\[data-ayah\]/);
+  assert.match(appSource, /buildQcf4AyahMarkerAttrs/);
 });
