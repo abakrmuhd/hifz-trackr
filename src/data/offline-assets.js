@@ -5,8 +5,8 @@ export const SHELL_ASSETS = [
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-06-26-density-fit-all-3",
-  "/src/styles.css?v=2026-06-26-density-fit-all-3"
+  "/src/app.js?v=2026-06-27-qcf4-renderer",
+  "/src/styles.css?v=2026-06-27-qcf4-renderer"
 ];
 
 export const DATA_ASSETS = [
