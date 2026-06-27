@@ -582,7 +582,7 @@ small {
   overflow: hidden;
   margin-top: 8px;
   --mushaf-row-height: 2.13rem;
-  --mushaf-page-content-height: calc(31.95rem + 42px);
+  --mushaf-page-content-height: min(660px, 126.3vw);
   height: max(clamp(430px, 62vh, 620px), calc(var(--mushaf-page-content-height) + 38px));
   padding: 18px 15px;
   border: 1px solid var(--line);
@@ -752,7 +752,7 @@ mushaf-page-inner {
 
 .ayah-chars .line {
   display: block;
-  min-height: min(44px, 8.42cqw);
+  height: min(44px, 8.42cqw);
   width: 100%;
   unicode-bidi: bidi-override;
 }

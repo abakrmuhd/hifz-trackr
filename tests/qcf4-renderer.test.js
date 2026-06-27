@@ -112,6 +112,8 @@ test("styles define Muhaffidh-like QCF4 page metrics", () => {
   assert.match(styles, /mushaf-page\s*\{[\s\S]*width:\s*100%/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*font-size:\s*min\(29px,\s*5\.55cqw\)/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*line-height:\s*min\(44px,\s*8\.42cqw\)/);
+  assert.match(styles, /--mushaf-page-content-height:\s*min\(660px,\s*126\.3vw\)/);
+  assert.match(styles, /\.ayah-chars\s+\.line\s*\{[\s\S]*height:\s*min\(44px,\s*8\.42cqw\)/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*letter-spacing:\s*-2\.1px/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*white-space:\s*nowrap/);
   assert.match(styles, /\.ayah-chars\s+\.space\s*\{[\s\S]*font-size:\s*2px/);
