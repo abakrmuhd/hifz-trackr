@@ -2,7 +2,7 @@
 
 ## Goal
 
-Replace the current Unicode/word-spacing mushaf text renderer with a local renderer that matches Muhaffidh's full reading-page look: a fixed mushaf page scaled to the viewport, QCF4 Hafs glyph fonts, page header/footer treatment, surah headers, basmala, line grouping, and ayah-number rendering. Tap Hifz tracking, review, navigation, and detail modal behavior should continue to work on top of the new reading surface.
+Replace the current Unicode/word-spacing mushaf text renderer with a local renderer that matches Muhaffidh's full reading-page look: a fixed mushaf page scaled to the viewport, QCF4 Hafs glyph fonts, page header/footer treatment, surah headers, basmala, line grouping, and ayah-number rendering. Hifz Trackr tracking, review, navigation, and detail modal behavior should continue to work on top of the new reading surface.
 
 The reader must remain local-first and usable offline. Quran Foundation or other remote APIs may be used as an offline generation source, but the app must not depend on a runtime API call to display pages.
 
@@ -45,7 +45,7 @@ Text lines should contain:
 - `ayahGroups`: each group maps to `surah`, `ayah`, and child word glyph spans.
 - `words`: glyph character, word index, surah, ayah, and font number.
 
-Tap Hifz should continue to derive repetition keys as `${surah}:${ayah}`. Transitions remain page-local and should be calculated from the current page's ayah sequence, as they are today.
+Hifz Trackr should continue to derive repetition keys as `${surah}:${ayah}`. Transitions remain page-local and should be calculated from the current page's ayah sequence, as they are today.
 
 ## Rendering Architecture
 
@@ -76,7 +76,7 @@ The QCF4 reader DOM should mirror Muhaffidh's shape:
 </mushaf-page>
 ```
 
-Tap Hifz ayah markers should be applied to `ayah-group` or to the ayah-number glyph span, depending on which best preserves Muhaffidh's exact glyph layout. The transition arc should be an overlay that does not occupy inline layout space.
+Hifz Trackr ayah markers should be applied to `ayah-group` or to the ayah-number glyph span, depending on which best preserves Muhaffidh's exact glyph layout. The transition arc should be an overlay that does not occupy inline layout space.
 
 ## Styling
 
@@ -88,7 +88,7 @@ Adopt Muhaffidh's page proportions as the base:
 - `.line`: inline row containers with bidi override.
 - `.centered-line`: centered rows for surah header and basmala-style content.
 
-Tap Hifz theme colors may remain around the reader shell, but the page itself should visually follow Muhaffidh's reading page treatment. Progress halos, selected ayah state, and long-press hit targets must be overlays or pseudo-elements so they do not change glyph spacing.
+Hifz Trackr theme colors may remain around the reader shell, but the page itself should visually follow Muhaffidh's reading page treatment. Progress halos, selected ayah state, and long-press hit targets must be overlays or pseudo-elements so they do not change glyph spacing.
 
 ## Offline and Caching
 

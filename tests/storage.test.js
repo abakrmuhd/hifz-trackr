@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import {
   APP_STATE_KEY,
   INDEXED_DB_TIMEOUT_MS,
+  LEGACY_APP_STATE_KEY,
   LEGACY_LOCAL_STORAGE_KEY,
+  LOCAL_STORAGE_KEY,
   mergeStoredState,
   selectInitialStateSource,
   loadPersistedState
@@ -63,11 +65,13 @@ test("mergeStoredState migrates legacy threshold names to count threshold names"
 });
 
 test("selectInitialStateSource prefers IndexedDB state when it exists", () => {
-  const indexedState = { recentPages: [99] };
+  const currentIndexedState = { recentPages: [99] };
   const legacyState = { recentPages: [12] };
 
   const result = selectInitialStateSource({
-    indexedState,
+    currentIndexedState,
+    legacyIndexedState: null,
+    localRawState: null,
     legacyRawState: JSON.stringify(legacyState),
     defaultState
   });
@@ -79,7 +83,9 @@ test("selectInitialStateSource prefers IndexedDB state when it exists", () => {
 
 test("selectInitialStateSource imports legacy localStorage state when IndexedDB is empty", () => {
   const result = selectInitialStateSource({
-    indexedState: null,
+    currentIndexedState: null,
+    legacyIndexedState: null,
+    localRawState: null,
     legacyRawState: JSON.stringify({ recentPages: [5], settings: { sound: true } }),
     defaultState
   });
@@ -88,6 +94,36 @@ test("selectInitialStateSource imports legacy localStorage state when IndexedDB 
   assert.deepEqual(result.state.recentPages, [5]);
   assert.equal(result.state.lastPage, 5);
   assert.equal(result.state.settings.sound, true);
+});
+
+test("selectInitialStateSource imports legacy IndexedDB state when current storage is empty", () => {
+  const result = selectInitialStateSource({
+    currentIndexedState: null,
+    legacyIndexedState: { recentPages: [18], settings: { sound: true } },
+    localRawState: null,
+    legacyRawState: null,
+    defaultState
+  });
+
+  assert.equal(result.source, LEGACY_APP_STATE_KEY);
+  assert.deepEqual(result.state.recentPages, [18]);
+  assert.equal(result.state.lastPage, 18);
+  assert.equal(result.state.settings.sound, true);
+});
+
+test("selectInitialStateSource uses the current localStorage key before legacy storage", () => {
+  const result = selectInitialStateSource({
+    currentIndexedState: null,
+    legacyIndexedState: { recentPages: [18] },
+    localRawState: JSON.stringify({ recentPages: [22], settings: { theme: "light" } }),
+    legacyRawState: JSON.stringify({ recentPages: [5], settings: { sound: true } }),
+    defaultState
+  });
+
+  assert.equal(result.source, LOCAL_STORAGE_KEY);
+  assert.deepEqual(result.state.recentPages, [22]);
+  assert.equal(result.state.lastPage, 22);
+  assert.equal(result.state.settings.theme, "light");
 });
 
 test("mergeStoredState keeps an explicit saved last page over recent pages", () => {

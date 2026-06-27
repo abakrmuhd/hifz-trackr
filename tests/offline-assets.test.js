@@ -33,6 +33,6 @@ test("offline precache includes QCF4 pages, fonts, and reader modules", () => {
   assert.ok(FONT_ASSETS.includes("/public/fonts/qcf4/QCF4_Hafs_47_W.woff2"));
   assert.ok(READER_ASSETS.includes("/src/reader/qcf4-data.js"));
   assert.ok(READER_ASSETS.includes("/src/reader/qcf4-logic.js"));
-  assert.ok(READER_ASSETS.includes("/src/reader/qcf4-renderer.js"));
+  assert.ok(READER_ASSETS.some((asset) => asset.startsWith("/src/reader/qcf4-renderer.js")));
   assert.ok(PRECACHE_URLS.includes("/public/mushaf-qcf4/page-596.json"));
 });

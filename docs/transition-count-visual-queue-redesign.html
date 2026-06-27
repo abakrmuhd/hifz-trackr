@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transition Count Visual Cue Options</title>
+    <style>
+      @font-face {
+        font-family: "QCF2001";
+        src: url("../public/fonts/qcf4/QCF4_Hafs_01_W.woff2") format("woff2");
+        font-display: block;
+      }
+
+      :root {
+        color-scheme: dark;
+        --bg: #16161d;
+        --panel: #202029;
+        --surface: #252531;
+        --surface-2: #2b2b37;
+        --line: #363644;
+        --text: #f7f7ef;
+        --muted: #aaaeb8;
+        --empty: #e6e6de;
+        --mastered: #abda1a;
+        --ink: #263500;
+        --gold: #d9b75f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(ellipse at top left, rgba(171, 218, 26, .08), transparent 42%),
+          var(--bg);
+        color: var(--text);
+        font-family: "Source Sans 3", "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(1120px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 36px 0 48px;
+      }
+
+      header {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(1.6rem, 3vw, 2.55rem);
+        line-height: 1;
+      }
+
+      header p,
+      .card p {
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        display: grid;
+        gap: 14px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--panel) 92%, #000 8%);
+      }
+
+      .card.recommended {
+        border-color: color-mix(in srgb, var(--mastered) 55%, var(--line) 45%);
+      }
+
+      .label {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        gap: 8px;
+        color: var(--mastered);
+        font-size: .72rem;
+        font-weight: 950;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+
+      .mock-page {
+        display: grid;
+        gap: 16px;
+        min-height: 180px;
+        padding: 22px 18px;
+        border: 1px solid color-mix(in srgb, var(--line), var(--text) 8%);
+        border-radius: 8px;
+        background: var(--surface);
+        direction: rtl;
+        overflow: hidden;
+      }
+
+      .line {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 13px;
+        min-width: 0;
+        color: var(--text);
+        font-family: "Traditional Arabic", "Amiri", serif;
+        font-size: 1.45rem;
+        line-height: 1.7;
+        white-space: nowrap;
+      }
+
+      .word {
+        color: #f6f1df;
+      }
+
+      .ayah {
+        position: relative;
+        display: inline-grid;
+        place-items: center;
+        min-width: 0;
+        width: auto;
+        height: auto;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--count-color);
+        font-family: "QCF2001";
+        font-size: inherit;
+        font-weight: inherit;
+        line-height: inherit;
+        isolation: isolate;
+      }
+
+      .low {
+        --count-color: #e6e6de;
+      }
+
+      .mid {
+        --count-color: #c9e07c;
+      }
+
+      .high {
+        --count-color: #abda1a;
+      }
+
+      .notch .ayah::after {
+        content: "";
+        position: absolute;
+        inset-block-start: .08em;
+        inset-inline-start: -.24em;
+        width: .48em;
+        height: .48em;
+        border: 2px solid var(--gold);
+        border-inline-end-color: transparent;
+        border-block-end-color: transparent;
+        border-radius: 999px;
+      }
+
+      .dot .ayah::after {
+        content: "";
+        position: absolute;
+        inset-block-start: .1em;
+        inset-inline-start: -.24em;
+        width: .28em;
+        height: .28em;
+        border: 1px solid color-mix(in srgb, var(--surface) 75%, #000 25%);
+        border-radius: 999px;
+        background: var(--gold);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 22%, transparent);
+      }
+
+      .hairline .ayah::after {
+        content: "";
+        position: absolute;
+        inset: .04em -.18em;
+        border-radius: 999px;
+        background: conic-gradient(from -90deg, var(--gold) 0deg 220deg, rgba(255, 255, 255, .13) 220deg 360deg);
+        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+        mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+      }
+
+      .underline .ayah::after {
+        content: "";
+        position: absolute;
+        inset-inline: .08em;
+        inset-block-end: .08em;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--gold) 70%, rgba(255, 255, 255, .16) 70%);
+      }
+
+      .connector .line {
+        gap: 13px;
+      }
+
+      .connector .ayah::after {
+        content: "";
+        position: absolute;
+        inset-inline: -.16em;
+        inset-block-end: .04em;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, var(--gold) 18%, var(--gold) 82%, transparent);
+        box-shadow: 0 0 10px rgba(217, 183, 95, .34);
+      }
+
+      .pros {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        color: var(--muted);
+        font-size: .86rem;
+        line-height: 1.35;
+      }
+
+      .pros strong {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--text);
+      }
+
+      @media (max-width: 760px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        main {
+          width: min(100vw - 20px, 520px);
+          padding-top: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Always-Visible Transition Count Cues</h1>
+        <p>Each option keeps ayah repetition as the main number color, then adds a quieter transition cue that means “incoming link from the previous ayah.”</p>
+      </header>
+
+      <section class="grid">
+        <article class="card recommended">
+          <span class="label">Recommended</span>
+          <h2>1. Small Incoming Notch</h2>
+          <div class="mock-page notch">
+            <div class="line"><span class="word">الحمد لله رب</span><span class="ayah low">&#xf104;</span><span class="word">العالمين</span><span class="ayah mid">&#xf109;</span></div>
+            <div class="line"><span class="word">الرحمن الرحيم</span><span class="ayah high">&#xf10c;</span></div>
+          </div>
+          <p>A small corner crescent suggests “incoming transition” without turning the ayah number into a dashboard widget.</p>
+          <div class="pros"><div><strong>Best for</strong>Quiet always-visible progress.</div><div><strong>Tradeoff</strong>Less precise than a full arc.</div></div>
+        </article>
+
+        <article class="card">
+          <span class="label">Minimal</span>
+          <h2>2. Transition Dot</h2>
+          <div class="mock-page dot">
+            <div class="line"><span class="word">الحمد لله رب</span><span class="ayah low">&#xf104;</span><span class="word">العالمين</span><span class="ayah mid">&#xf109;</span></div>
+            <div class="line"><span class="word">الرحمن الرحيم</span><span class="ayah high">&#xf10c;</span></div>
+          </div>
+          <p>A bead gives an unmistakable secondary signal while keeping the ayah marker shape clean.</p>
+          <div class="pros"><div><strong>Best for</strong>Lowest visual noise.</div><div><strong>Tradeoff</strong>Can feel like a notification.</div></div>
+        </article>
+
+        <article class="card">
+          <span class="label">Closest Current</span>
+          <h2>3. Outer Hairline Arc</h2>
+          <div class="mock-page hairline">
+            <div class="line"><span class="word">الحمد لله رب</span><span class="ayah low">&#xf104;</span><span class="word">العالمين</span><span class="ayah mid">&#xf109;</span></div>
+            <div class="line"><span class="word">الرحمن الرحيم</span><span class="ayah high">&#xf10c;</span></div>
+          </div>
+          <p>This preserves the current progress-ring idea, but makes it thin, external, and less visually aggressive.</p>
+          <div class="pros"><div><strong>Best for</strong>Precise progress reading.</div><div><strong>Tradeoff</strong>Still slightly “loading spinner.”</div></div>
+        </article>
+
+        <article class="card">
+          <span class="label">Text-Like</span>
+          <h2>4. Short Underline Tick</h2>
+          <div class="mock-page underline">
+            <div class="line"><span class="word">الحمد لله رب</span><span class="ayah low">&#xf104;</span><span class="word">العالمين</span><span class="ayah mid">&#xf109;</span></div>
+            <div class="line"><span class="word">الرحمن الرحيم</span><span class="ayah high">&#xf10c;</span></div>
+          </div>
+          <p>A tiny underline feels more like annotation than UI chrome, especially on dense QCF text.</p>
+          <div class="pros"><div><strong>Best for</strong>Annotation-like feel.</div><div><strong>Tradeoff</strong>May collide with tight line spacing.</div></div>
+        </article>
+
+        <article class="card">
+          <span class="label">Semantic</span>
+          <h2>5. Connector Underline</h2>
+          <div class="mock-page connector">
+            <div class="line"><span class="word">الحمد لله رب</span><span class="ayah low">&#xf104;</span><span class="word">العالمين</span><span class="ayah mid">&#xf109;</span></div>
+            <div class="line"><span class="word">الرحمن الرحيم</span><span class="ayah high">&#xf10c;</span></div>
+          </div>
+          <p>A centered underline spans the ayah marker width plus a small outward stretch, so transition progress stays attached to the source ayah without cluttering nearby text.</p>
+          <div class="pros"><div><strong>Best for</strong>Conceptual clarity with less clutter.</div><div><strong>Tradeoff</strong>Needs careful spacing on dense lines.</div></div>
+        </article>
+      </section>
+      <section class="implementation-note">
+        <strong>Implementation note:</strong> change transition logging so double tap on ayah 1 increments transition ayah 1 -> ayah 2, double tap on ayah 2 increments transition ayah 2 -> ayah 3, and so on. The visual cue should attach to the source ayah as a centered underline.
+      </section>
+    </main>
+  </body>
+</html>

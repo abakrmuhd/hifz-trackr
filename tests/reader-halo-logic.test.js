@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildCountProgressColor,
+  buildCountProgressInkColor,
   buildRepetitionAriaLabel,
   buildRepetitionRingState
 } from "../src/data/reader-halo-logic.js";
@@ -19,32 +21,14 @@ test("buildRepetitionRingState maps repetition and transition counts into badge 
     }),
     {
       repetitionCountLevel: "strong",
+      repetitionCountColor: "#c6df72",
+      repetitionCountInkColor: "#263500",
       transitionCountLevel: "building",
-      hasTransitionRing: true,
-      transitionArcDegrees: 216
+      transitionCountColor: "#d4e2a3",
+      transitionCountInkColor: "#263500",
+      transitionProgressPercent: 30,
+      hasTransitionRing: true
     }
-  );
-});
-
-test("buildRepetitionRingState computes transition arc from count over target", () => {
-  assert.equal(
-    buildRepetitionRingState({
-      repetitionCount: 1,
-      transitionCount: 5,
-      repetitionThresholds,
-      transitionCountThresholds
-    }).transitionArcDegrees,
-    180
-  );
-
-  assert.equal(
-    buildRepetitionRingState({
-      repetitionCount: 1,
-      transitionCount: 80,
-      repetitionThresholds,
-      transitionCountThresholds
-    }).transitionArcDegrees,
-    360
   );
 });
 
@@ -58,11 +42,59 @@ test("buildRepetitionRingState omits the ring when no transition is available", 
     }),
     {
       repetitionCountLevel: "weak",
+      repetitionCountColor: "#e2e5cf",
+      repetitionCountInkColor: "#263500",
       transitionCountLevel: null,
-      hasTransitionRing: false,
-      transitionArcDegrees: 0
+      transitionCountColor: null,
+      transitionCountInkColor: null,
+      transitionProgressPercent: 0,
+      hasTransitionRing: false
     }
   );
+});
+
+test("buildRepetitionRingState maps transition count into underline progress", () => {
+  assert.equal(
+    buildRepetitionRingState({
+      repetitionCount: 1,
+      transitionCount: 0,
+      repetitionThresholds,
+      transitionCountThresholds
+    }).transitionProgressPercent,
+    0
+  );
+
+  assert.equal(
+    buildRepetitionRingState({
+      repetitionCount: 1,
+      transitionCount: 20,
+      repetitionThresholds,
+      transitionCountThresholds
+    }).transitionProgressPercent,
+    50
+  );
+
+  assert.equal(
+    buildRepetitionRingState({
+      repetitionCount: 1,
+      transitionCount: 80,
+      repetitionThresholds,
+      transitionCountThresholds
+    }).transitionProgressPercent,
+    100
+  );
+});
+
+test("buildCountProgressColor interpolates from empty to mastered and clamps after mastery", () => {
+  assert.equal(buildCountProgressColor(0, repetitionThresholds), "#e6e6de");
+  assert.equal(buildCountProgressColor(20, repetitionThresholds), "#c9e07c");
+  assert.equal(buildCountProgressColor(40, repetitionThresholds), "#abda1a");
+  assert.equal(buildCountProgressColor(80, repetitionThresholds), "#abda1a");
+});
+
+test("buildCountProgressInkColor keeps count badges readable across the gradient", () => {
+  assert.equal(buildCountProgressInkColor(0, repetitionThresholds), "#263500");
+  assert.equal(buildCountProgressInkColor(40, repetitionThresholds), "#263500");
 });
 
 test("buildRepetitionAriaLabel appends transition count level only when a transition exists", () => {

@@ -4,6 +4,7 @@ import {
   buildLowCountItems,
   buildMetadataFromPages,
   getPageRepetitionLevel,
+  resolveOutgoingTransition,
   resolveActiveTarget
 } from "../src/data/metadata-logic.js";
 
@@ -72,6 +73,35 @@ test("buildLowCountItems resolves ayah page by exact ayahToPage mapping", () => 
 
   assert.equal(lowCountItems[0].page, 2);
   assert.equal(lowCountItems[0].key, "2:2");
+});
+
+test("resolveOutgoingTransition finds same-page and cross-page next ayahs in the same surah", () => {
+  const metadata = {
+    ayahToPage: {
+      "2:15": 3,
+      "2:16": 3,
+      "2:17": 4,
+      "3:1": 4
+    },
+    pages: {
+      "3": { ayahKeys: ["2:15", "2:16"] },
+      "4": { ayahKeys: ["2:17", "3:1"] }
+    }
+  };
+
+  assert.deepEqual(resolveOutgoingTransition("2:15", metadata), {
+    key: "3|2:15|2:16",
+    page: 3,
+    from: "2:15",
+    to: "2:16"
+  });
+  assert.deepEqual(resolveOutgoingTransition("2:16", metadata), {
+    key: "3|2:16|2:17",
+    page: 3,
+    from: "2:16",
+    to: "2:17"
+  });
+  assert.equal(resolveOutgoingTransition("2:17", metadata), null);
 });
 
 test("resolveActiveTarget prefers review target and falls back to route target", () => {

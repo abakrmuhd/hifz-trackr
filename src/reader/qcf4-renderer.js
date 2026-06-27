@@ -17,8 +17,12 @@ function renderGlyphItem(item, index, items, group, options) {
   const markerAttrs = item.type === "ayah-marker" && !options.inert
     ? ` ${options.buildAyahMarkerAttrs(group?.key, group, item)}`
     : "";
+  const markerStyle = item.type === "ayah-marker" && !options.inert
+    ? options.buildAyahMarkerStyle(group?.key, group, item)
+    : "";
+  const style = [`font-family: '${family}'`, markerStyle].filter(Boolean).join("; ");
   const space = index < items.length - 1 ? '<span class="space"> </span>' : "";
-  return `<span class="${typeClass}"${markerAttrs} style="font-family: '${family}'">${glyph}</span>${space}`;
+  return `<span class="${typeClass}"${markerAttrs} style="${escapeHtml(style)}">${glyph}</span>${space}`;
 }
 
 function renderGlyphs(glyphs = [], group, options) {
@@ -52,6 +56,7 @@ export function renderQcf4Page(pageData, options) {
     buildAyahAttrs: () => "",
     buildAyahMarkerAttrs: () => "",
     buildAyahMarkerClass: () => "ayah-marker",
+    buildAyahMarkerStyle: () => "",
     buildGroupClass: () => "ayah-group",
     ...options
   };

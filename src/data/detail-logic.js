@@ -21,8 +21,8 @@ export function describeDetailTarget(detailTarget, options) {
 
   const repetitionCount = options.getRepetitionCount(detailTarget.key);
   const repetitionCountLevel = getCountLevelClass(repetitionCount, options.settings.repetitionThresholds);
-  const incoming = options.resolveIncomingTransition
-    ? options.resolveIncomingTransition(detailTarget.key)
+  const outgoing = options.resolveOutgoingTransition
+    ? options.resolveOutgoingTransition(detailTarget.key)
     : null;
   const bookmarked = options.isAyahBookmarked(detailTarget.key);
 
@@ -38,22 +38,22 @@ export function describeDetailTarget(detailTarget, options) {
       countLevel: repetitionCountLevel,
       target: buildTargetCount(repetitionCount, options.settings.repetitionThresholds)
     },
-    transition: incoming
-      ? buildIncomingTransitionDetail(incoming, options)
+    transition: outgoing
+      ? buildOutgoingTransitionDetail(outgoing, options)
       : {
           available: false,
           label: "Transition count",
-          message: "No incoming transition"
+          message: "No outgoing transition"
         }
   };
 }
 
-function buildIncomingTransitionDetail(incoming, options) {
-  const count = options.getTransitionCount(incoming.key);
+function buildOutgoingTransitionDetail(outgoing, options) {
+  const count = options.getTransitionCount(outgoing.key);
   const countLevel = getCountLevelClass(count, options.settings.transitionCountThresholds);
   return {
     available: true,
-    path: incoming.path,
+    path: outgoing.path,
     label: "Transition count",
     count,
     countLevel,

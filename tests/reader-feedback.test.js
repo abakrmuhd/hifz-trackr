@@ -21,6 +21,12 @@ test("ayah marker gives immediate tap feedback before count commit", () => {
   assert.match(appSource, /marker\.animate\(/);
 });
 
+test("count increase sound is prepared during the tap gesture before delayed commit", () => {
+  assert.match(appSource, /function handleAyahTap\(key,\s*marker = null\)\s*\{[\s\S]*?prepareCountIncreaseSound\(\);[\s\S]*?setTimeout\(\(\) => \{/);
+  assert.match(appSource, /let countIncreaseAudioContext = null/);
+  assert.doesNotMatch(appSource, /context\.close\(\)/);
+});
+
 test("page shell pointerup routes non-drag ayah taps to feedback", () => {
   assert.match(appSource, /resolveAyahMarkerAtPoint\(event\.clientX,\s*event\.clientY\)/);
   assert.match(appSource, /lastPointerAyahTap/);
@@ -30,7 +36,6 @@ test("page shell pointerup routes non-drag ayah taps to feedback", () => {
 test("long press detail modal cancels active page swipe gesture", () => {
   assert.match(appSource, /function cancelPageGesture\(\)/);
   assert.match(appSource, /bindLongPress\(button,\s*\(\) => \{[\s\S]*?cancelPageGesture\(\);[\s\S]*?detailTarget = \{ kind: "ayah"/);
-  assert.match(appSource, /bindLongPress\(button,\s*\(\) => \{[\s\S]*?cancelPageGesture\(\);[\s\S]*?detailTarget = \{ kind: "transition"/);
 });
 
 test("desktop text selection bypasses page swipe startup", () => {
@@ -85,16 +90,25 @@ test("reader no longer renders the swipe hint copy", () => {
   assert.doesNotMatch(styles, /\.swipe-hint/);
 });
 
-test("transition arc ring renders above the ayah marker surface", () => {
-  assert.match(styles, /\.ayah-mark\.transition-count-weak::after,[\s\S]*z-index:\s*1/);
+test("transition underline renders as a centered source-ayah cue", () => {
+  assert.match(styles, /--transition-progress:\s*0%/);
+  assert.match(styles, /\.ayah-mark::before\s*\{[\s\S]*background:\s*linear-gradient\(90deg,\s*transparent,\s*color-mix\(in srgb,\s*var\(--text\) 34%,\s*transparent\)/);
+  assert.match(styles, /\.ayah-mark::after\s*\{[\s\S]*inset-inline:\s*-\.16em/);
+  assert.match(styles, /clip-path:\s*inset\(0 var\(--transition-clip\)\)/);
+  assert.match(styles, /linear-gradient\(90deg,\s*transparent,\s*var\(--transition-color\)[\s\S]*transparent\)/);
   assert.doesNotMatch(styles, /\.ayah-mark::after\s*\{[\s\S]*z-index:\s*-1/);
-  assert.match(styles, /conic-gradient\(from -90deg,\s*#abda1a 0deg var\(--transition-arc, 0deg\),\s*rgba\(13, 20, 7, \.68\) var\(--transition-arc, 0deg\) 360deg\)/);
+  assert.match(appSource, /resolveOutgoingTransition\(key,\s*metadata\)/);
 });
 
-test("transition arc ring is thick enough to be visible around ayah marker", () => {
-  assert.match(styles, /--transition-ring-width:\s*5px/);
-  assert.match(styles, /\.ayah-mark::after\s*\{[\s\S]*inset:\s*0/);
-  assert.match(styles, /transparent calc\(100% - var\(--transition-ring-width\)\)/);
-  assert.doesNotMatch(styles, /transparent calc\(100% - 2px\), #000 calc\(100% - 1px\)/);
-  assert.doesNotMatch(styles, /\.ayah-mark::after\s*\{[\s\S]*inset:\s*calc\(var\(--transition-ring-width\) \* -1\)/);
+test("transition increment triggers a center-out shine on the source ayah", () => {
+  assert.match(styles, /\.transition-shine::after[\s\S]*animation:\s*transition-shine/);
+  assert.match(styles, /@keyframes transition-shine[\s\S]*clip-path:\s*inset\(0 50%\)/);
+  assert.match(appSource, /if \(key\.includes\("\|"\)\) restartTransitionShine\(marker\)/);
+  assert.match(appSource, /function restartTransitionShine\(marker\)/);
+});
+
+test("double tap logs the outgoing transition from the tapped ayah", () => {
+  assert.match(appSource, /const transition = resolveOutgoingTransition\(key,\s*metadata\)/);
+  assert.match(appSource, /logTransition\(transition\.key\)/);
+  assert.doesNotMatch(appSource, /const previous = previousVisibleAyah\(key\);[\s\S]*?logTransition\(transitionKey\(route\.page,\s*previous,\s*key\)\)/);
 });

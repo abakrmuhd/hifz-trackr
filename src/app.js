@@ -1,14 +1,17 @@
 import { JUZ_RANGES } from "./data/juz.js";
-import { describeDetailTarget } from "./data/detail-logic.js";
+import { describeDetailTarget } from "./data/detail-logic.js?v=2026-06-27-transition-underline";
 import {
   buildLowCountItems,
   getPageRepetitionLevel,
+  resolveOutgoingTransition,
   resolveActiveTarget
-} from "./data/metadata-logic.js";
+} from "./data/metadata-logic.js?v=2026-06-27-transition-underline";
 import {
+  buildCountProgressColor,
+  buildCountProgressInkColor,
   buildRepetitionAriaLabel,
   buildRepetitionRingState
-} from "./data/reader-halo-logic.js";
+} from "./data/reader-halo-logic.js?v=2026-06-27-transition-underline";
 import { resolveNavigationTarget } from "./data/navigation-logic.js";
 import {
   loadPersistedState,
@@ -26,8 +29,8 @@ import {
 import { getLineFitClass } from "./data/mushaf-line-fit.js?v=2026-06-26-density-fit-all-3";
 import { shouldRegisterServiceWorker } from "./data/runtime-environment.js";
 import { fetchQcf4Page } from "./reader/qcf4-data.js?v=2026-06-26-qcf4-renderer";
-import { buildQcf4PreviousAyahMap, collectQcf4AyahKeys } from "./reader/qcf4-logic.js?v=2026-06-26-qcf4-renderer";
-import { renderQcf4Page } from "./reader/qcf4-renderer.js?v=2026-06-26-qcf4-renderer";
+import { collectQcf4AyahKeys } from "./reader/qcf4-logic.js?v=2026-06-26-qcf4-renderer";
+import { renderQcf4Page } from "./reader/qcf4-renderer.js?v=2026-06-27-count-gradient";
 import {
   buildTrackPages,
   clampTrackOffset,
@@ -45,7 +48,7 @@ const setBootStatus = (label) => {
   app.innerHTML = `
     <main class="app-shell home-shell">
       <div class="detail-card">
-        <div class="detail-title"><span>Starting Tap Hifz</span></div>
+        <div class="detail-title"><span>Starting Hifz Trackr</span></div>
         <p class="empty-state">${escapeHtml(label)}</p>
       </div>
     </main>
@@ -106,6 +109,7 @@ let trackState = {
   dragging: false,
   offset: 0
 };
+let countIncreaseAudioContext = null;
 let pageCache = new Map();
 let qcf4PageCache = new Map();
 let surahVerseCounts = new Map();
@@ -266,7 +270,7 @@ function renderHome() {
     <main class="app-shell home-shell">
       <header class="topbar">
         <div>
-          <h1>Tap Hifz</h1>
+          <h1>Hifz Trackr</h1>
           <p>${summaryLine()}</p>
         </div>
         <button class="icon-btn" data-action="settings" data-dev-mode-trigger aria-label="Settings">${icons.settings}</button>
@@ -351,6 +355,7 @@ function renderSurahs() {
       ${entries.map((entry) => entry.kind === "juz" ? `
         <button class="list-row list-row-juz" data-page="${entry.page}">
           <strong>${entry.title}</strong>
+          <span class="surah-row-page" aria-label="Page ${entry.page}">${entry.page}</span>
         </button>
       ` : `
         <button class="list-row list-row-surah" data-page="${entry.page}">
@@ -463,21 +468,20 @@ function renderPageSlot(pageData, pageNumber, slotName, inert = false, activeTar
   const parity = pageNumber % 2 ? "odd" : "even";
   const openingPage = pageNumber <= 2 ? "opening-page" : "";
   if (qcf4PageData) {
-    const previousAyahMap = buildQcf4PreviousAyahMap(qcf4PageData);
     return `
       <div class="page-slot ${slotName} ${parity} ${openingPage} qcf4-slot" ${inert ? 'aria-hidden="true"' : ""}>
         ${renderQcf4Page(qcf4PageData, {
           inert,
           buildAyahAttrs: () => "",
           buildAyahMarkerAttrs: (key) => buildQcf4AyahMarkerAttrs(key, { pageNumber }),
-          buildAyahMarkerClass: (key) => buildQcf4AyahMarkerClass(key, activeTarget, { pageNumber, previousAyahMap }),
+          buildAyahMarkerClass: (key) => buildQcf4AyahMarkerClass(key, activeTarget),
+          buildAyahMarkerStyle: (key) => buildQcf4AyahMarkerStyle(key),
           buildGroupClass: () => "ayah-group"
         })}
       </div>
     `;
   }
-  const previousAyahMap = buildPreviousAyahMap(legacyPageData);
-  const lines = legacyPageData.lines.map((line) => renderLine(line, activeTarget, { inert, pageNumber, previousAyahMap })).join("");
+  const lines = legacyPageData.lines.map((line) => renderLine(line, activeTarget, { inert, pageNumber })).join("");
   return `
     <div class="page-slot ${slotName} ${parity} ${openingPage}" ${inert ? 'aria-hidden="true"' : ""}>
       <div class="mushaf" dir="rtl">${lines}</div>
@@ -503,17 +507,16 @@ function renderWord(word, activeTarget, options = {}) {
   const match = text.match(/^(.*?)(?:\s+)?([٠-٩]+)$/);
   if (!match) return `<span class="qword">${escapeHtml(text)}</span>`;
   const key = `${surah}:${ayah}`;
-  const previous = options.previousAyahMap?.get(key) || null;
   const pageNumber = options.pageNumber || route.page;
-  const transition = previous ? transitionKey(pageNumber, previous, key) : null;
+  const transition = resolveOutgoingTransition(key, metadata);
   const ringState = buildRepetitionRingState({
     repetitionCount: getRepetitionCount(key),
-    transitionCount: transition ? getTransitionCount(transition) : null,
+    transitionCount: transition ? getTransitionCount(transition.key) : null,
     repetitionThresholds: state.settings.repetitionThresholds,
     transitionCountThresholds: state.settings.transitionCountThresholds
   });
   const ayahActive = activeTarget?.kind === "Ayah" && activeTarget.key === key;
-  const transitionActive = activeTarget?.kind === "Transition" && activeTarget.key === transition;
+  const transitionActive = activeTarget?.kind === "Transition" && activeTarget.key === transition?.key;
   const ayahClass = [
     "ayah-mark",
     ringState.repetitionCountLevel,
@@ -521,13 +524,14 @@ function renderWord(word, activeTarget, options = {}) {
     transitionActive ? "transition-target" : "",
     ayahActive ? "target" : ""
   ].filter(Boolean).join(" ");
-  const transitionArcStyle = ringState.hasTransitionRing
-    ? ` style="--transition-arc: ${ringState.transitionArcDegrees}deg"`
+  const transitionUnderlineStyle = ringState.hasTransitionRing
+    ? `--transition-progress: ${ringState.transitionProgressPercent}%; --transition-clip: ${(100 - ringState.transitionProgressPercent) / 2}%; --transition-color: ${ringState.transitionCountColor}; `
     : "";
+  const ayahStyle = ` style="${transitionUnderlineStyle}--count-color: ${ringState.repetitionCountColor}; --count-ink: ${ringState.repetitionCountInkColor}"`;
   if (options.inert) {
     return `
       <span class="qword">${escapeHtml(match[1])}</span>
-      <span class="${ayahClass}"${transitionArcStyle} aria-hidden="true">${match[2]}</span>
+      <span class="${ayahClass}"${ayahStyle} aria-hidden="true">${match[2]}</span>
     `;
   }
   const ariaLabel = buildRepetitionAriaLabel({
@@ -537,7 +541,7 @@ function renderWord(word, activeTarget, options = {}) {
   });
   return `
     <span class="qword">${escapeHtml(match[1])}</span>
-    <button class="${ayahClass}"${transitionArcStyle} data-ayah="${key}" data-page="${pageNumber}" aria-label="${ariaLabel}">${match[2]}</button>
+    <button class="${ayahClass}"${ayahStyle} data-ayah="${key}" data-page="${pageNumber}" aria-label="${ariaLabel}">${match[2]}</button>
   `;
 }
 
@@ -545,22 +549,39 @@ function buildQcf4AyahMarkerAttrs(key, { pageNumber }) {
   const ariaLabel = buildRepetitionAriaLabel({
     ayahLabel: labelAyah(key),
     repetitionCountLevel: getCountLevelForAyah(key),
-    transitionCountLevel: getTransitionLevelForAyah(key, pageNumber)
+    transitionCountLevel: getTransitionLevelForAyah(key)
   });
   return `data-ayah="${escapeHtml(key)}" data-page="${pageNumber}" role="button" tabindex="0" aria-label="${escapeHtml(ariaLabel)}"`;
 }
 
-function buildQcf4AyahMarkerClass(key, activeTarget, { pageNumber, previousAyahMap }) {
-  const previous = previousAyahMap?.get(key) || null;
-  const transition = previous ? transitionKey(pageNumber, previous, key) : null;
+function buildQcf4AyahMarkerStyle(key) {
+  const count = getRepetitionCount(key);
+  const transition = resolveOutgoingTransition(key, metadata);
+  const transitionCount = transition ? getTransitionCount(transition.key) : null;
+  const transitionStyle = transition
+    ? (() => {
+        const ringState = buildRepetitionRingState({
+          repetitionCount: count,
+          transitionCount,
+          repetitionThresholds: state.settings.repetitionThresholds,
+          transitionCountThresholds: state.settings.transitionCountThresholds
+        });
+        return `; --transition-progress: ${ringState.transitionProgressPercent}%; --transition-clip: ${(100 - ringState.transitionProgressPercent) / 2}%; --transition-color: ${ringState.transitionCountColor}`;
+      })()
+    : "";
+  return `--count-color: ${buildCountProgressColor(count, state.settings.repetitionThresholds)}; --count-ink: ${buildCountProgressInkColor(count, state.settings.repetitionThresholds)}${transitionStyle}`;
+}
+
+function buildQcf4AyahMarkerClass(key, activeTarget) {
+  const transition = resolveOutgoingTransition(key, metadata);
   const ringState = buildRepetitionRingState({
     repetitionCount: getRepetitionCount(key),
-    transitionCount: transition ? getTransitionCount(transition) : null,
+    transitionCount: transition ? getTransitionCount(transition.key) : null,
     repetitionThresholds: state.settings.repetitionThresholds,
     transitionCountThresholds: state.settings.transitionCountThresholds
   });
   const ayahActive = activeTarget?.kind === "Ayah" && activeTarget.key === key;
-  const transitionActive = activeTarget?.kind === "Transition" && activeTarget.key === transition;
+  const transitionActive = activeTarget?.kind === "Transition" && activeTarget.key === transition?.key;
   return [
     "ayah-marker",
     "ayah-mark",
@@ -580,13 +601,12 @@ function getCountLevelForAyah(key) {
   }).repetitionCountLevel;
 }
 
-function getTransitionLevelForAyah(key, pageNumber) {
-  const previous = previousVisibleAyah(key);
-  if (!previous) return null;
-  const transition = transitionKey(pageNumber, previous, key);
+function getTransitionLevelForAyah(key) {
+  const transition = resolveOutgoingTransition(key, metadata);
+  if (!transition) return null;
   return buildRepetitionRingState({
     repetitionCount: getRepetitionCount(key),
-    transitionCount: getTransitionCount(transition),
+    transitionCount: getTransitionCount(transition.key),
     repetitionThresholds: state.settings.repetitionThresholds,
     transitionCountThresholds: state.settings.transitionCountThresholds
   }).transitionCountLevel;
@@ -614,7 +634,7 @@ function renderDetails() {
     labelAyah,
     labelTransition,
     isAyahBookmarked: (key) => state.ayahBookmarks.some((item) => item.key === key),
-    resolveIncomingTransition
+    resolveOutgoingTransition: resolveDetailTransition
   });
 
   if (detail.mode === "transition") {
@@ -629,7 +649,7 @@ function renderDetails() {
               <div class="detail-block">
                 <div class="detail-block-copy">
                   <div class="detail-block-head">
-                    <span class="small-pill ${detail.transitionOnly.countLevel}">${titleCase(detail.transitionOnly.countLevel)}</span>
+                    <span class="small-pill ${detail.transitionOnly.countLevel}"${countColorStyle(detail.transitionOnly.count, state.settings.transitionCountThresholds)}>${titleCase(detail.transitionOnly.countLevel)}</span>
                     <span class="detail-metric-label">${detail.transitionOnly.label}</span>
                   </div>
                   <div class="detail-count-row">
@@ -650,7 +670,7 @@ function renderDetails() {
         <div class="detail-transition-row">
           <div class="detail-transition-copy">
             <div class="detail-transition-head">
-              <span class="small-pill ${detail.transition.countLevel}">${titleCase(detail.transition.countLevel)}</span>
+              <span class="small-pill ${detail.transition.countLevel}"${countColorStyle(detail.transition.count, state.settings.transitionCountThresholds)}>${titleCase(detail.transition.countLevel)}</span>
               <span class="detail-metric-label">${detail.transition.label}</span>
             </div>
             <div class="detail-count-row">
@@ -684,7 +704,7 @@ function renderDetails() {
             <div class="detail-block">
               <div class="detail-block-copy">
                 <div class="detail-block-head">
-                  <span class="small-pill ${detail.ayah.countLevel}">${titleCase(detail.ayah.countLevel)}</span>
+                  <span class="small-pill ${detail.ayah.countLevel}"${countColorStyle(detail.ayah.count, state.settings.repetitionThresholds)}>${titleCase(detail.ayah.countLevel)}</span>
                   <span class="detail-metric-label">${detail.ayah.label}</span>
                 </div>
                 <div class="detail-count-row">
@@ -1009,11 +1029,12 @@ async function moveTrack(direction, options = {}) {
 
 function handleAyahTap(key, marker = null) {
   if (marker) playAyahTapFeedback(marker);
+  prepareCountIncreaseSound();
   if (pendingTap?.key === key) {
     clearTimeout(pendingTap.timer);
-    const previous = previousVisibleAyah(key);
-    if (previous) {
-      logTransition(transitionKey(route.page, previous, key));
+    const transition = resolveOutgoingTransition(key, metadata);
+    if (transition) {
+      logTransition(transition.key);
     } else {
       unavailableFeedback(key);
     }
@@ -1048,12 +1069,13 @@ async function postMutationFeedback(key) {
   await saveState();
   render();
   const selector = key.includes("|")
-    ? `[data-ayah="${CSS.escape(key.split("|")[2])}"]`
+    ? `[data-ayah="${CSS.escape(key.split("|")[1])}"]`
     : `[data-ayah="${CSS.escape(key)}"]`;
   const marker = app.querySelector(selector);
   const count = key.includes("|") ? getTransitionCount(key) : getRepetitionCount(key);
   if (marker) {
     restartAyahPulse(marker);
+    if (key.includes("|")) restartTransitionShine(marker);
     spawnRepetitionCountPop(marker, count, app);
   }
   playCountIncreaseSound();
@@ -1062,6 +1084,13 @@ async function postMutationFeedback(key) {
 
 function restartAyahPulse(marker) {
   playAyahTapFeedback(marker);
+}
+
+function restartTransitionShine(marker) {
+  marker.classList.remove("transition-shine");
+  void marker.offsetWidth;
+  marker.classList.add("transition-shine");
+  marker.addEventListener("animationend", () => marker.classList.remove("transition-shine"), { once: true });
 }
 
 function playAyahTapFeedback(marker) {
@@ -1084,9 +1113,31 @@ function playAyahTapFeedback(marker) {
 
 function playCountIncreaseSound() {
   const config = getCountIncreaseSoundConfig(state.settings);
-  if (!config || typeof AudioContext === "undefined") return;
+  if (!config) return;
+  prepareCountIncreaseSound();
+  const context = countIncreaseAudioContext;
+  if (!context) return;
 
-  const context = new AudioContext();
+  if (context.state === "suspended") {
+    context.resume().then(() => playCountIncreaseTone(context, config)).catch(() => {});
+    return;
+  }
+
+  playCountIncreaseTone(context, config);
+}
+
+function prepareCountIncreaseSound() {
+  if (!getCountIncreaseSoundConfig(state.settings)) return;
+  const AudioContextConstructor = globalThis.AudioContext || globalThis.webkitAudioContext;
+  if (!AudioContextConstructor) return;
+
+  countIncreaseAudioContext ||= new AudioContextConstructor();
+  if (countIncreaseAudioContext.state === "suspended") {
+    countIncreaseAudioContext.resume().catch(() => {});
+  }
+}
+
+function playCountIncreaseTone(context, config) {
   const now = context.currentTime;
   const oscillator = context.createOscillator();
   const gain = context.createGain();
@@ -1112,8 +1163,6 @@ function playCountIncreaseSound() {
     second.start(now + 0.035);
     second.stop(now + config.duration + 0.055);
   }
-
-  setTimeout(() => context.close().catch(() => {}), Math.ceil((config.duration + 0.08) * 1000));
 }
 
 function spawnRepetitionCountPop(marker, count, container) {
@@ -1173,7 +1222,7 @@ async function mutateSpecificDetail(kind, delta) {
   if (kind === "transition") {
     const target = detailTarget.kind === "transition"
       ? detailTarget.key
-      : resolveIncomingTransition(detailTarget.key)?.key;
+      : resolveDetailTransition(detailTarget.key)?.key;
     if (!target) return;
     const currentCount = getTransitionCount(target);
     const nextCount = Math.max(0, currentCount + delta);
@@ -1435,20 +1484,16 @@ function labelTransition(key) {
   return `${from} -> ${to}`;
 }
 
-function resolveIncomingTransition(ayahKey) {
-  const page = pageForAyah(ayahKey);
-  const ayahKeys = metadata.pages[String(page)]?.ayahKeys || [];
-  const index = ayahKeys.indexOf(ayahKey);
-  if (index <= 0) return null;
-  const previous = ayahKeys[index - 1];
-  const key = transitionKey(page, previous, ayahKey);
+function resolveDetailTransition(ayahKey) {
+  const transition = resolveOutgoingTransition(ayahKey, metadata);
+  if (!transition) return null;
   return {
-    key,
-    path: formatIncomingTransitionPath(previous, ayahKey)
+    key: transition.key,
+    path: formatTransitionPath(transition.from, transition.to)
   };
 }
 
-function formatIncomingTransitionPath(from, to) {
+function formatTransitionPath(from, to) {
   return `${from.split(":")[1]} -> ${to.split(":")[1]}`;
 }
 
@@ -1459,6 +1504,10 @@ function renderCountValue(count, target) {
       <span class="detail-metric-target">/${target}</span>
     </div>
   `;
+}
+
+function countColorStyle(count, thresholds) {
+  return ` style="--count-color: ${buildCountProgressColor(count, thresholds)}; --count-ink: ${buildCountProgressInkColor(count, thresholds)}"`;
 }
 
 function resolveReaderTarget() {
@@ -1507,7 +1556,7 @@ function exportJson() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `tap-hifz-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `hifz-trackr-backup-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
 }

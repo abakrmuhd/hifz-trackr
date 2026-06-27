@@ -1,4 +1,4 @@
-# Tap Hifz Quran Memorization PWA PRD
+# Hifz Trackr Quran Memorization PWA PRD
 
 Status: Draft  
 Product type: Progressive Web App  
@@ -8,7 +8,7 @@ Core tracking mechanic: Tap ayah numbers to track memorization strength
 
 ## Summary
 
-Tap Hifz is a focused Quran memorization tracker built around the standard 604-page mushaf layout. Users choose a mushaf page from the Home screen, enter the Reading screen, and track memorization directly on ayah numbers. The Reading screen renders selectable mushaf text using the `zonetecde/mushaf-layout` dataset. A single tap records repetition strength for an individual ayah. A double tap records transition strength from the previous ayah into the current ayah.
+Hifz Trackr is a focused Quran memorization tracker built around the standard 604-page mushaf layout. Users choose a mushaf page from the Home screen, enter the Reading screen, and track memorization directly on ayah numbers. The Reading screen renders selectable mushaf text using the `zonetecde/mushaf-layout` dataset. A single tap records repetition strength for an individual ayah. A double tap records transition strength from the previous ayah into the current ayah.
 
 The app tracks two related but separate forms of memorization strength:
 

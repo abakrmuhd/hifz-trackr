@@ -1,5 +1,5 @@
 const app = document.querySelector("#app");
-const STARTUP_ASSET_VERSION = "2026-06-27-qcf4-renderer";
+const STARTUP_ASSET_VERSION = "2026-06-27-transition-shine-bold";
 const LOCALHOST_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function escapeHtml(text) {

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a local, offline-capable QCF4 glyph renderer that gives Tap Hifz the same full reading-page look as Muhaffidh while preserving Tap Hifz tracking interactions.
+**Goal:** Build a local, offline-capable QCF4 glyph renderer that gives Hifz Trackr the same full reading-page look as Muhaffidh while preserving Hifz Trackr tracking interactions.
 
 **Architecture:** Add a QCF4 asset/data pipeline, then add a renderer boundary beside the current Unicode renderer. The reader loads QCF4 page data when present, renders Muhaffidh-style `mushaf-page` markup, and falls back to the existing renderer until all 604 QCF4 pages exist.
 
@@ -912,7 +912,7 @@ git commit -m "Style QCF reading page"
 Modify `src/data/offline-assets.js`:
 
 ```js
-export const CACHE_VERSION = "tap-hifz-v41";
+export const CACHE_VERSION = "hifz-trackr-v41";
 
 export const QCF4_FONT_ASSETS = [
   "/public/fonts/qcf4/QCF4_QBSML.woff2",
@@ -1004,7 +1004,7 @@ Navigate to pages 585 and 596.
 
 Expected: both pages render through `mushaf-page` with no horizontal overflow.
 
-- [ ] **Step 5: Verify Tap Hifz interaction**
+- [ ] **Step 5: Verify Hifz Trackr interaction**
 
 On page 1, tap an ayah group.
 

@@ -111,6 +111,25 @@ export function buildLowCountItems({
   return [...ayahs, ...transitions].sort((a, b) => a.level - b.level || a.count - b.count || a.page - b.page);
 }
 
+export function resolveOutgoingTransition(ayahKey, metadata) {
+  const page = metadata.ayahToPage?.[ayahKey];
+  if (!page) return null;
+
+  const ayahKeys = Object.entries(metadata.pages || {})
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .flatMap(([, pageData]) => pageData.ayahKeys || []);
+  const index = ayahKeys.indexOf(ayahKey);
+  const next = index >= 0 ? ayahKeys[index + 1] : null;
+  if (!next || next.split(":")[0] !== ayahKey.split(":")[0]) return null;
+
+  return {
+    key: `${page}|${ayahKey}|${next}`,
+    page,
+    from: ayahKey,
+    to: next
+  };
+}
+
 export function resolveActiveTarget({ review, routeTarget }) {
   if (review && !review.done) return review.queue[review.index] || null;
   return routeTarget || null;

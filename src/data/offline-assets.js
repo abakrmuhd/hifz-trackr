@@ -1,32 +1,32 @@
-export const CACHE_VERSION = "tap-hifz-v41-qcf4";
+export const CACHE_VERSION = "hifz-trackr-v48-transition-shine-bold";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-06-27-qcf4-renderer",
-  "/src/styles.css?v=2026-06-27-qcf4-renderer"
+  "/src/app.js?v=2026-06-27-transition-shine-bold",
+  "/src/styles.css?v=2026-06-27-transition-shine-bold"
 ];
 
 export const DATA_ASSETS = [
   "/src/data/juz.js",
-  "/src/data/metadata-logic.js",
+  "/src/data/metadata-logic.js?v=2026-06-27-transition-underline",
   "/src/data/mushaf-line-fit.js?v=2026-06-26-density-fit-all-3",
   "/src/data/mushaf-metadata.json",
   "/src/data/navigation-logic.js",
   "/src/data/navigation-metadata.json",
   "/src/data/offline-assets.js",
-  "/src/data/reader-halo-logic.js",
+  "/src/data/reader-halo-logic.js?v=2026-06-27-transition-underline",
   "/src/data/runtime-environment.js",
-  "/src/data/detail-logic.js",
+  "/src/data/detail-logic.js?v=2026-06-27-transition-underline",
   "/src/data/storage.js"
 ];
 
 export const READER_ASSETS = [
   "/src/reader/qcf4-data.js",
   "/src/reader/qcf4-logic.js",
-  "/src/reader/qcf4-renderer.js",
+  "/src/reader/qcf4-renderer.js?v=2026-06-27-count-gradient",
   "/src/reader/swipe-reveal.js"
 ];
 
