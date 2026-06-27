@@ -653,7 +653,7 @@ small {
 
 .qcf4-slot {
   place-items: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .page-shell.dragging {
