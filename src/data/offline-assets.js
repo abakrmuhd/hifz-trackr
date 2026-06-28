@@ -1,20 +1,21 @@
-export const CACHE_VERSION = "hifz-trackr-v48-transition-shine-bold";
+export const CACHE_VERSION = "hifz-trackr-v51-right-click-modal-only";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-06-27-transition-shine-bold",
-  "/src/styles.css?v=2026-06-27-transition-shine-bold"
+  "/src/app.js?v=2026-06-28-right-click-modal-only",
+  "/src/styles.css?v=2026-06-28-right-click-modal-only"
 ];
 
 export const DATA_ASSETS = [
+  "/src/data/home-search-view.js?v=2026-06-28-home-search",
   "/src/data/juz.js",
   "/src/data/metadata-logic.js?v=2026-06-27-transition-underline",
   "/src/data/mushaf-line-fit.js?v=2026-06-26-density-fit-all-3",
   "/src/data/mushaf-metadata.json",
-  "/src/data/navigation-logic.js",
+  "/src/data/navigation-logic.js?v=2026-06-28-home-search",
   "/src/data/navigation-metadata.json",
   "/src/data/offline-assets.js",
   "/src/data/reader-halo-logic.js?v=2026-06-27-transition-underline",

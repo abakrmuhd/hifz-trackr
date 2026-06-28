@@ -12,12 +12,24 @@ import {
   buildRepetitionAriaLabel,
   buildRepetitionRingState
 } from "./data/reader-halo-logic.js?v=2026-06-27-transition-underline";
-import { resolveNavigationTarget } from "./data/navigation-logic.js";
 import {
+  resolveNavigationTarget,
+  searchNavigationTargets
+} from "./data/navigation-logic.js?v=2026-06-28-home-search";
+import { renderHomeSearchResults } from "./data/home-search-view.js?v=2026-06-28-home-search";
+import { buildDeveloperSeedState } from "./data/developer-seed.js";
+import {
+  clearSeedBackup,
   loadPersistedState,
+  loadSeedBackup,
   mergeStoredState,
+  saveSeedBackup,
   savePersistedState
 } from "./data/storage.js?v=2";
+import {
+  limitRecentPages,
+  pushRecentPage
+} from "./data/recent-pages.js?v=2026-06-28-recent-pages";
 import {
   applyDeveloperThresholdMode,
   buildTripleActivationState,
@@ -68,6 +80,7 @@ const defaultState = {
   ayahProgress: {},
   transitionProgress: {},
   lastPage: 1,
+  lastRoute: { screen: "home", tab: "progress", page: 1, target: null },
   recentPages: [],
   ayahBookmarks: [],
   pageBookmarks: [],
@@ -98,6 +111,7 @@ let undoVisible = false;
 let detailTarget = null;
 let settingsOpen = false;
 let settingsError = null;
+let hasSeedBackup = false;
 let developerModeTapState = null;
 let review = null;
 let swipeStart = null;
@@ -113,6 +127,10 @@ let countIncreaseAudioContext = null;
 let pageCache = new Map();
 let qcf4PageCache = new Map();
 let surahVerseCounts = new Map();
+let homeSearch = {
+  query: "",
+  results: []
+};
 
 const SWIPE_COMMIT_DISTANCE = 60;
 const SWIPE_CANCEL_VERTICAL_LIMIT = 70;
@@ -146,14 +164,16 @@ init().catch(showFatalError);
 async function init() {
   setBootStatus("Loading saved state...");
   state = await loadState();
+  hasSeedBackup = Boolean(await loadSeedBackup());
   state.lastPage = clampPage(state.lastPage);
+  state.lastRoute = normalizeRouteState(state.lastRoute, state.lastPage);
   setBootStatus("Loading metadata...");
   document.documentElement.dataset.theme = state.settings.theme;
   const [mushafData, navigationData] = await Promise.all([
     fetchJson("/src/data/mushaf-metadata.json"),
     fetchJson("/src/data/navigation-metadata.json")
   ]);
-  const initialPage = clampPage(state.lastPage);
+  const initialPage = clampPage(state.lastRoute.page || state.lastPage);
   setBootStatus(`Loading page ${initialPage}...`);
   metadata = {
     ...mushafData,
@@ -163,7 +183,12 @@ async function init() {
   surahVerseCounts = buildSurahVerseCounts(metadata.pages);
   const initialTrack = await loadTrackPages(initialPage);
   trackPages = initialTrack.data;
-  route = { screen: "reading", tab: route.tab, page: initialPage, target: null };
+  route = {
+    screen: state.lastRoute.screen,
+    tab: state.lastRoute.tab,
+    page: initialPage,
+    target: null
+  };
   setBootStatus("Binding events...");
   bindGlobalEvents();
   setBootStatus("Rendering...");
@@ -175,6 +200,7 @@ async function init() {
 
 async function loadState() {
   const loaded = await loadPersistedState(defaultState);
+  loaded.recentPages = limitRecentPages(loaded.recentPages);
   loaded.settings.repetitionThresholds = normalizeThresholdProfile(
     loaded.settings.repetitionThresholds,
     defaultState.settings.repetitionThresholds
@@ -245,15 +271,17 @@ async function openPage(page, options = {}) {
   trackPages = nextTrack.data;
   trackState = { direction: null, dragging: false, offset: 0 };
   if (!options.silent) {
-    state.lastPage = route.page;
-    state.recentPages = [route.page, ...state.recentPages.filter((item) => item !== route.page)].slice(0, 20);
+    rememberCurrentRoute();
+    state.recentPages = pushRecentPage(state.recentPages, route.page);
     await saveState();
   }
   render();
 }
 
-function goHome(tab = route.tab || "progress") {
+async function goHome(tab = route.tab || "progress") {
   route = { screen: "home", tab, page: route.page, target: null };
+  rememberCurrentRoute();
+  await saveState();
   render();
 }
 
@@ -271,14 +299,15 @@ function renderHome() {
       <header class="topbar">
         <div>
           <h1>Hifz Trackr</h1>
-          <p>${summaryLine()}</p>
+          <p>tap, track, tathbit</p>
         </div>
         <button class="icon-btn" data-action="settings" data-dev-mode-trigger aria-label="Settings">${icons.settings}</button>
       </header>
       <label class="search-box">
         ${icons.search}
-        <input id="jumpInput" type="search" placeholder="Page 48, Al-Baqarah, Juz 3" autocomplete="off" />
+        <input id="jumpInput" type="search" placeholder="Page 48, Al-Baqarah, Juz 3" autocomplete="off" value="${escapeHtml(homeSearch.query)}" />
       </label>
+      ${renderHomeSearchResults(homeSearch.results)}
       <nav class="tabs" aria-label="Home sections">
         ${["progress", "surahs", "bookmarks"].map((tab) => `
           <button class="${route.tab === tab ? "active" : ""}" data-tab="${tab}">${titleCase(tab)}</button>
@@ -294,6 +323,7 @@ function renderHome() {
 }
 
 function renderProgress() {
+  const previewQueueSize = 5;
   const strip = JUZ_RANGES.map(([number, start, end]) => `<span class="mushaf-strip-segment ${rangeRepetitionLevel(start, end)}" aria-hidden="true" title="Juz ${number}"></span>`).join("");
   const juzItems = JUZ_RANGES.map(([number, start, end]) => {
     const repetitionLevel = rangeRepetitionLevel(start, end);
@@ -304,37 +334,36 @@ function renderProgress() {
   for (let page = current[1]; page <= current[2]; page += 1) {
     pages.push(`<button class="page-cell ${pageRepetitionLevel(page)}" data-page="${page}">${page}</button>`);
   }
-  const lowCountItems = getLowCountItems().slice(0, state.settings.reviewQueueSize);
+  const lowCountItems = getLowCountItems();
+  const previewItems = lowCountItems.slice(0, previewQueueSize);
   return `
-    <div class="section-head">
-      <div><h2>Whole Mushaf By Juz</h2><p>${progressPrompt()}</p></div>
-      <button class="primary-btn ${lowCountItems.length ? "" : "quiet"}" data-action="start-review" ${lowCountItems.length ? "" : "disabled"}>
-        ${lowCountItems.length ? "Start low-count review" : "No low-count items to review"}
-      </button>
-    </div>
     <div class="progress-card">
       <div class="mushaf-strip" aria-hidden="true">${strip}</div>
       <div class="section-caption mushaf-strip-label">Juz</div>
-      <div class="juz-grid" dir="rtl">${juzItems}</div>
+      <div class="juz-grid" dir="ltr">${juzItems}</div>
       <div class="selected-head">
         <strong class="section-caption">Page</strong>
-        <span class="summary-pills"><span class="small-pill weak">${countPages(current, "weak")} low count</span><span class="small-pill strong">${countHighCountPages(current)} high count</span></span>
+        <span class="summary-pills"><span class="small-pill weak">${countPages(current, "weak")} weak</span><span class="small-pill strong">${countHighCountPages(current)} strong</span></span>
       </div>
-      <div class="page-grid" dir="rtl">${pages.join("")}</div>
+      <div class="page-grid" dir="ltr">${pages.join("")}</div>
     </div>
     <h3 class="label">Practice Next</h3>
     <div class="queue-list">
-      ${lowCountItems.length ? lowCountItems.map(renderQueueItem).join("") : `<p class="empty-state">Open a page and tap ayah numbers to start tracking.</p>`}
+      ${previewItems.length ? previewItems.map(renderQueueItem).join("") : `<p class="empty-state">Open a page and tap ayah numbers to start tracking.</p>`}
     </div>
   `;
 }
 
 function renderQueueItem(item) {
   const countLabel = item.kind === "Ayah" ? "repetition count" : "transition count";
+  const primaryLabel = item.kind === "Transition"
+    ? formatQueueTransitionLabel(item.key)
+    : formatQueueAyahLabel(item.label);
+  const typeLabel = item.kind === "Ayah" ? "Repetition" : "Transition";
   return `
     <button class="list-row" data-review-target="${encodeURIComponent(JSON.stringify(item))}">
-      <span><strong>${item.label}</strong><small>Page ${item.page}, ${countLabel} ${item.count}</small></span>
-      <span class="type-pill">${item.kind}</span>
+      <span><strong>${primaryLabel}</strong><small>Page ${item.page}, ${countLabel} ${item.count}</small></span>
+      <span class="queue-pills"><span class="small-pill ${item.countLevel}">${titleCase(item.countLevel)}</span><span class="type-pill">${typeLabel}</span></span>
     </button>
   `;
 }
@@ -406,16 +435,19 @@ function formatVerseLabel(count) {
 }
 
 function renderBookmarks() {
+  const recentPages = limitRecentPages(state.recentPages);
   return `
     <h2>Bookmarks</h2>
     <h3 class="label">Recent Pages</h3>
-    <div class="quick-pages">
-      ${state.recentPages.length ? state.recentPages.map((page) => `<button class="page-chip" data-page="${page}">${page}<small>${metadata.pages[String(page)]?.label || ""}</small></button>`).join("") : `<p class="empty-state">Pages you open will appear here.</p>`}
+    <div class="queue-list">
+      ${recentPages.length ? recentPages.map((page) => `
+        <div class="list-row static"><button data-page="${page}"><strong>Page ${page}</strong><small>${metadata.pages[String(page)]?.label || ""}</small></button></div>
+      `).join("") : `<p class="empty-state">Pages you open will appear here.</p>`}
     </div>
     <h3 class="label">Page Bookmarks</h3>
     <div class="queue-list">
       ${state.pageBookmarks.length ? [...state.pageBookmarks].sort((a, b) => a - b).map((page) => `
-        <div class="list-row static"><button data-page="${page}"><strong>Page ${page}</strong><small>${metadata.pages[String(page)]?.label || ""}</small></button><button class="icon-btn small" data-remove-page-bookmark="${page}" aria-label="Remove page bookmark">${icons.trash}</button></div>
+        <div class="list-row static"><button data-page="${page}"><strong>Page ${page}</strong><small>${metadata.pages[String(page)]?.label || ""}</small></button><button class="icon-btn small active" data-remove-page-bookmark="${page}" aria-label="Remove page bookmark">${icons.bookmark}</button></div>
       `).join("") : `<p class="empty-state">No page bookmarks yet.</p>`}
     </div>
     <h3 class="label">Ayah Bookmarks</h3>
@@ -728,6 +760,8 @@ function renderSettings() {
       <section class="modal settings-modal" role="dialog" aria-modal="true" aria-label="Settings">
         <header class="modal-head"><strong data-dev-mode-trigger>Settings</strong><button class="icon-btn small" data-action="close-settings" aria-label="Close">${icons.close}</button></header>
         ${settingsError ? `<p class="settings-error" role="alert">${escapeHtml(settingsError)}</p>` : ""}
+        <h3 class="label">Storage</h3>
+        <div class="setting-row static"><span>Practice events<small>${progressPrompt()}</small></span></div>
         <h3 class="label">Appearance</h3>
         <div class="setting-row"><span>Dark mode<small>Default on</small></span><button class="toggle ${s.theme === "dark" ? "on" : ""}" data-setting="theme" role="switch" aria-checked="${s.theme === "dark"}"></button></div>
         <h3 class="label">Feedback</h3>
@@ -740,6 +774,7 @@ function renderSettings() {
         ${renderThresholdSettings("Transition count", "transitionCountThresholds", s.transitionCountThresholds)}
         <h3 class="label">Backup</h3>
         <div class="actions"><button class="secondary-btn" data-action="export-json">${icons.export} Export JSON</button><label class="secondary-btn file-btn">Import JSON<input type="file" accept="application/json" data-action="import-json" /></label></div>
+        ${s.developerMode ? `<h3 class="label">Developer</h3><div class="actions"><button class="secondary-btn" data-action="seed-test-data">Seed test data</button><button class="secondary-btn" data-action="restore-test-data" ${hasSeedBackup ? "" : "disabled"}>Restore pre-seed data</button></div><p class="settings-note">${hasSeedBackup ? "A pre-seed snapshot is ready to restore." : "Seed once to enable restore."}</p>` : ""}
         <button class="danger-btn full" data-action="reset-all">Reset all data</button>
       </section>
     </div>
@@ -789,14 +824,16 @@ function bindScreenEvents() {
   app.querySelectorAll("[data-remove-ayah-bookmark]").forEach((button) => button.addEventListener("click", () => removeAyahBookmark(button.dataset.removeAyahBookmark)));
 
   app.querySelectorAll(".page-slot.current .ayah-marker[data-ayah], .page-slot.current button.ayah-mark[data-ayah]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      if (event.button !== 0) return;
       if (lastPointerAyahTap.key === button.dataset.ayah && Date.now() < lastPointerAyahTap.until) return;
       handleAyahTap(button.dataset.ayah, button);
     });
-    bindLongPress(button, () => {
-      cancelPageGesture();
-      detailTarget = { kind: "ayah", key: button.dataset.ayah, page: Number(button.dataset.page) };
-      render();
+    bindLongPress(button, () => openAyahDetail(button));
+    button.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openAyahDetail(button);
     });
   });
 
@@ -819,6 +856,7 @@ function bindScreenEvents() {
     }, true);
     pageShell.addEventListener("pointerdown", (event) => {
       if (pageNavigationInFlight) return;
+      if (event.button !== 0) return;
       if (!shouldStartTrackGesture({
         pointerType: event.pointerType,
         startedOnSelectableText: Boolean(event.target.closest?.(".mushaf-line"))
@@ -930,12 +968,30 @@ function bindScreenEvents() {
 
   const jump = app.querySelector("#jumpInput");
   if (jump) {
+    jump.addEventListener("input", () => {
+      const nextQuery = jump.value;
+      updateHomeSearch(nextQuery, {
+        selectionStart: jump.selectionStart ?? nextQuery.length,
+        selectionEnd: jump.selectionEnd ?? nextQuery.length
+      });
+    });
     jump.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
-      const target = parseJump(jump.value);
-      if (target) openPage(target);
+      const target = homeSearch.results[0]?.page || parseJump(jump.value);
+      if (!target) return;
+      clearHomeSearch();
+      openPage(target);
     });
   }
+
+  app.querySelectorAll("[data-search-page]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const page = Number(el.dataset.searchPage);
+      if (!page) return;
+      clearHomeSearch();
+      openPage(page);
+    });
+  });
 }
 
 function resolveAyahMarkerAtPoint(x, y) {
@@ -951,7 +1007,7 @@ async function handleAction(event, el) {
   if (action === "settings") settingsOpen = true;
   if (action === "close-settings") settingsOpen = false;
   if (action === "close-modal") detailTarget = null;
-  if (action === "home") goHome();
+  if (action === "home") { await goHome(); return; }
   if (action === "previous-page") moveTrack("previous");
   if (action === "next-page") moveTrack("next");
   if (action === "toggle-page-bookmark") togglePageBookmark();
@@ -964,8 +1020,10 @@ async function handleAction(event, el) {
   if (action === "start-review") startReview();
   if (action === "skip-review") skipReview();
   if (action === "next-review") nextReview();
-  if (action === "finish-review") { review = null; goHome("progress"); return; }
+  if (action === "finish-review") { review = null; await goHome("progress"); return; }
   if (action === "export-json") exportJson();
+  if (action === "seed-test-data") seedTestData();
+  if (action === "restore-test-data") restoreSeedBackup();
   if (action === "reset-all") resetAll();
   if (!["previous-page", "next-page", "decrement-repetition-detail", "decrement-transition-detail"].includes(action)) render();
 }
@@ -1017,8 +1075,8 @@ async function moveTrack(direction, options = {}) {
     const loaded = await loadTrackPages(targetPage);
     trackPages = loaded.data;
     trackState = { direction: null, dragging: false, offset: 0 };
-    state.lastPage = route.page;
-    state.recentPages = [route.page, ...state.recentPages.filter((item) => item !== route.page)].slice(0, 20);
+    rememberCurrentRoute();
+    state.recentPages = pushRecentPage(state.recentPages, route.page);
     await saveState();
     render();
     applyTrackState();
@@ -1461,17 +1519,32 @@ function parseJump(value) {
   return resolveNavigationTarget(value, metadata, PAGE_COUNT)?.page || null;
 }
 
+function clearHomeSearch() {
+  homeSearch = {
+    query: "",
+    results: []
+  };
+}
+
+function updateHomeSearch(query, selection = null) {
+  homeSearch = {
+    query,
+    results: searchNavigationTargets(query, metadata, PAGE_COUNT)
+  };
+  render();
+  if (!selection) return;
+  const nextJump = app.querySelector("#jumpInput");
+  if (!nextJump) return;
+  nextJump.focus();
+  nextJump.setSelectionRange(selection.selectionStart, selection.selectionEnd);
+}
+
 function pageForAyah(key) {
   return metadata.ayahToPage[key] || route.page;
 }
 
 function progressPrompt() {
   return state.practiceEvents.length ? `${state.practiceEvents.length} practice events stored locally.` : "Open a page and tap ayah numbers to start tracking.";
-}
-
-function summaryLine() {
-  const total = Object.values(state.ayahProgress).reduce((sum, item) => sum + item.repetitionCount, 0);
-  return total ? `${total} ayah repetitions saved offline.` : "Local-first Quran memorization tracker.";
 }
 
 function labelAyah(key) {
@@ -1482,6 +1555,19 @@ function labelAyah(key) {
 function labelTransition(key) {
   const [, from, to] = key.split("|");
   return `${from} -> ${to}`;
+}
+
+function formatQueueAyahLabel(label) {
+  const compact = label.replace(/^Surah\s+/, "");
+  const [surah, ayah] = compact.split(":");
+  return `${surah} : ${ayah}`;
+}
+
+function formatQueueTransitionLabel(key) {
+  const [, from, to] = key.split("|");
+  const [surah, fromAyah] = from.split(":");
+  const [, toAyah] = to.split(":");
+  return `${surah} : ${fromAyah} - ${toAyah}`;
 }
 
 function resolveDetailTransition(ayahKey) {
@@ -1542,10 +1628,45 @@ function clampPage(page) {
   return Math.min(PAGE_COUNT, Math.max(1, page));
 }
 
+function normalizeRouteState(value, fallbackPage = 1) {
+  const validTabs = new Set(["progress", "surahs", "bookmarks"]);
+  const screen = value?.screen === "reading" || value?.screen === "home" ? value.screen : "home";
+  const tab = validTabs.has(value?.tab) ? value.tab : "progress";
+  return {
+    screen,
+    tab,
+    page: clampPage(value?.page || fallbackPage),
+    target: null
+  };
+}
+
+function rememberCurrentRoute() {
+  state.lastPage = clampPage(route.page);
+  state.lastRoute = {
+    screen: route.screen === "reading" ? "reading" : "home",
+    tab: ["progress", "surahs", "bookmarks"].includes(route.tab) ? route.tab : "progress",
+    page: state.lastPage,
+    target: null
+  };
+}
+
 function bindLongPress(el, callback) {
   let timer = null;
   el.addEventListener("pointerdown", () => { timer = setTimeout(callback, 520); });
   ["pointerup", "pointerleave", "pointercancel"].forEach((event) => el.addEventListener(event, () => clearTimeout(timer)));
+}
+
+function openAyahDetail(button) {
+  clearPendingTap();
+  cancelPageGesture();
+  detailTarget = { kind: "ayah", key: button.dataset.ayah, page: Number(button.dataset.page) };
+  render();
+}
+
+function clearPendingTap() {
+  if (!pendingTap) return;
+  clearTimeout(pendingTap.timer);
+  pendingTap = null;
 }
 
 function unavailableFeedback(key) {
@@ -1565,8 +1686,44 @@ async function importJson(file) {
   if (!file) return;
   state = mergeStoredState(defaultState, JSON.parse(await file.text()));
   state.lastPage = clampPage(state.lastPage);
-  await saveState();
+  state.lastRoute = normalizeRouteState(state.lastRoute, state.lastPage);
+  hasSeedBackup = false;
   settingsOpen = false;
+  await clearSeedBackup();
+  await saveState();
+  render();
+}
+
+async function seedTestData() {
+  const ok = confirm("Seed developer test data?\n\nThis will replace progress, practice history, recent pages, and bookmarks on this device, but it will keep your settings.");
+  if (!ok) return;
+  const backup = cloneValue(state);
+  state = buildDeveloperSeedState({ ...cloneValue(defaultState), settings: cloneValue(state.settings) }, metadata);
+  state.lastPage = clampPage(state.lastPage);
+  state.lastRoute = normalizeRouteState(state.lastRoute, state.lastPage);
+  hasSeedBackup = true;
+  settingsOpen = false;
+  settingsError = null;
+  render();
+  await saveSeedBackup(backup);
+  await saveState();
+}
+
+async function restoreSeedBackup() {
+  const backup = await loadSeedBackup();
+  if (!backup) {
+    settingsError = "No pre-seed data is available to restore.";
+    render();
+    return;
+  }
+  state = mergeStoredState(defaultState, backup);
+  state.lastPage = clampPage(state.lastPage);
+  state.lastRoute = normalizeRouteState(state.lastRoute, state.lastPage);
+  hasSeedBackup = false;
+  settingsOpen = false;
+  settingsError = null;
+  await clearSeedBackup();
+  await saveState();
   render();
 }
 
@@ -1574,7 +1731,9 @@ function resetAll() {
   const ok = confirm("Reset all progress?\n\nThis will remove all repetition counts, practice history, recent pages, and bookmarks stored on this device. This cannot be undone.");
   if (!ok) return;
   state = cloneValue(defaultState);
+  hasSeedBackup = false;
   addEvent("reset-all", { page: route.page });
+  clearSeedBackup();
   saveState();
 }
 

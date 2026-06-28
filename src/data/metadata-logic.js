@@ -92,6 +92,7 @@ export function buildLowCountItems({
       kind: "Ayah",
       key,
       count: value.repetitionCount,
+      countLevel: getCountLevelClass(value.repetitionCount, repetitionThresholds),
       page: metadata.ayahToPage[key],
       label: labelAyah(key),
       level: 1
@@ -103,6 +104,7 @@ export function buildLowCountItems({
       kind: "Transition",
       key,
       count: value.repetitionCount,
+      countLevel: getCountLevelClass(value.repetitionCount, transitionCountThresholds),
       page: Number(key.split("|")[0]),
       label: labelTransition(key),
       level: 1

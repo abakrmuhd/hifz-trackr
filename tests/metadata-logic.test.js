@@ -73,6 +73,7 @@ test("buildLowCountItems resolves ayah page by exact ayahToPage mapping", () => 
 
   assert.equal(lowCountItems[0].page, 2);
   assert.equal(lowCountItems[0].key, "2:2");
+  assert.equal(lowCountItems[0].countLevel, "weak");
 });
 
 test("resolveOutgoingTransition finds same-page and cross-page next ayahs in the same surah", () => {

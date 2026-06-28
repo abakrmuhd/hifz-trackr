@@ -3,10 +3,13 @@ export const APP_DB_VERSION = 1;
 export const APP_STORE_NAME = "app-state";
 export const APP_STATE_KEY = "hifz-trackr-app-state";
 export const LOCAL_STORAGE_KEY = "hifz-trackr-state";
+export const SEED_BACKUP_KEY = "hifz-trackr-seed-backup";
+export const SEED_BACKUP_LOCAL_STORAGE_KEY = "hifz-trackr-seed-backup-state";
 export const LEGACY_APP_DB_NAME = "tap-hifz";
 export const LEGACY_APP_STATE_KEY = "tap-hifz-app-state";
 export const LEGACY_LOCAL_STORAGE_KEY = "tap-hifz-state";
 export const INDEXED_DB_TIMEOUT_MS = 750;
+import { limitRecentPages } from "./recent-pages.js";
 const LEGACY_REPETITION_THRESHOLD_KEY = ["ayah", "Thresholds"].join("");
 const LEGACY_TRANSITION_COUNT_THRESHOLD_KEY = ["transition", "Thresholds"].join("");
 
@@ -20,8 +23,20 @@ export function resolveStoredLastPage(value, recentPages = [], fallback = 1) {
   return page || 1;
 }
 
+export function resolveStoredLastRoute(value, lastPage, fallback = { screen: "home", tab: "progress", page: 1 }) {
+  const validTabs = new Set(["progress", "surahs", "bookmarks"]);
+  const fallbackRoute = fallback || { screen: "home", tab: "progress", page: 1 };
+  const page = resolveStoredLastPage(value?.page, [], lastPage || fallbackRoute.page);
+  const tab = validTabs.has(value?.tab) ? value.tab : (validTabs.has(fallbackRoute.tab) ? fallbackRoute.tab : "progress");
+  const screen = value?.screen === "reading" || value?.screen === "home"
+    ? value.screen
+    : (Number.isInteger(lastPage) && lastPage > 1 ? "reading" : fallbackRoute.screen);
+
+  return { screen, tab, page, target: null };
+}
+
 export function mergeStoredState(base, value) {
-  const mergedRecentPages = Array.isArray(value?.recentPages) ? value.recentPages : base.recentPages;
+  const mergedRecentPages = Array.isArray(value?.recentPages) ? limitRecentPages(value.recentPages) : base.recentPages;
   const savedSettings = value?.settings || {};
   const {
     [LEGACY_REPETITION_THRESHOLD_KEY]: legacyRepetitionThresholds,
@@ -32,7 +47,13 @@ export function mergeStoredState(base, value) {
   return {
     ...cloneValue(base),
     ...value,
+    recentPages: mergedRecentPages,
     lastPage: resolveStoredLastPage(value?.lastPage, mergedRecentPages, base.lastPage),
+    lastRoute: resolveStoredLastRoute(
+      value?.lastRoute,
+      resolveStoredLastPage(value?.lastPage, mergedRecentPages, base.lastPage),
+      base.lastRoute
+    ),
     settings: {
       ...base.settings,
       ...storedSettings,
@@ -173,6 +194,18 @@ async function writeIndexedState(state) {
   await withStoreRequest("readwrite", (store) => store.put(state, APP_STATE_KEY), () => undefined);
 }
 
+async function readIndexedValue(key) {
+  return withStoreRequest("readonly", (store) => store.get(key), (request) => request.result || null);
+}
+
+async function writeIndexedValue(key, value) {
+  await withStoreRequest("readwrite", (store) => store.put(value, key), () => undefined);
+}
+
+async function deleteIndexedValue(key) {
+  await withStoreRequest("readwrite", (store) => store.delete(key), () => undefined);
+}
+
 export async function loadPersistedState(defaultState) {
   let currentIndexedState = null;
   let legacyIndexedState = null;
@@ -230,4 +263,45 @@ export async function savePersistedState(state) {
   }
 
   if (canUseLocalStorage()) localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+}
+
+export async function loadSeedBackup() {
+  if (canUseIndexedDb()) {
+    try {
+      const value = await withTimeout(readIndexedValue(SEED_BACKUP_KEY), INDEXED_DB_TIMEOUT_MS, "IndexedDB seed backup read");
+      if (value) return value;
+    } catch {
+      // Fall back to localStorage below.
+    }
+  }
+
+  if (!canUseLocalStorage()) return null;
+  const raw = localStorage.getItem(SEED_BACKUP_LOCAL_STORAGE_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function saveSeedBackup(state) {
+  if (canUseIndexedDb()) {
+    try {
+      await withTimeout(writeIndexedValue(SEED_BACKUP_KEY, state), INDEXED_DB_TIMEOUT_MS, "IndexedDB seed backup write");
+      if (canUseLocalStorage()) localStorage.removeItem(SEED_BACKUP_LOCAL_STORAGE_KEY);
+      return;
+    } catch {
+      // Fall back to localStorage below.
+    }
+  }
+
+  if (canUseLocalStorage()) localStorage.setItem(SEED_BACKUP_LOCAL_STORAGE_KEY, JSON.stringify(state));
+}
+
+export async function clearSeedBackup() {
+  if (canUseIndexedDb()) {
+    try {
+      await withTimeout(deleteIndexedValue(SEED_BACKUP_KEY), INDEXED_DB_TIMEOUT_MS, "IndexedDB seed backup delete");
+    } catch {
+      // Fall through to localStorage cleanup.
+    }
+  }
+
+  if (canUseLocalStorage()) localStorage.removeItem(SEED_BACKUP_LOCAL_STORAGE_KEY);
 }

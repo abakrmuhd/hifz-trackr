@@ -19,6 +19,7 @@ test("offline precache includes all committed mushaf page json files", () => {
 
 test("offline precache includes shell and metadata assets", () => {
   assert.ok(SHELL_ASSETS.includes("/index.html"));
+  assert.ok(DATA_ASSETS.includes("/src/data/home-search-view.js?v=2026-06-28-home-search"));
   assert.ok(DATA_ASSETS.includes("/src/data/mushaf-metadata.json"));
   assert.ok(DATA_ASSETS.includes("/src/data/navigation-metadata.json"));
   assert.ok(PRECACHE_URLS.includes("/public/mushaf/page-440.json"));

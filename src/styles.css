@@ -66,8 +66,8 @@
   --quiet: #7d8290;
   --empty: #e6e6de;
   --weak: #465829;
-  --building: #769622;
-  --strong: #abda1a;
+  --building: #647e24;
+  --strong: #92b81f;
   --mastered: #abda1a;
   --danger: #ff9a8c;
   --radius: 8px;
@@ -237,6 +237,70 @@ small {
   color: var(--text);
 }
 
+.search-results {
+  --search-result-row-height: 56px;
+  display: grid;
+  gap: 8px;
+  height: calc((var(--search-result-row-height) * 5) + (8px * 4));
+  max-height: calc((var(--search-result-row-height) * 5) + (8px * 4));
+  margin-top: 0;
+  padding: 0 0 8px;
+  overflow-y: auto;
+}
+
+.search-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--search-result-row-height);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.search-result-copy {
+  min-width: 0;
+}
+
+.search-result-copy strong,
+.search-result-copy small {
+  display: block;
+}
+
+.search-result-copy strong {
+  font-size: .9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-result-copy small {
+  margin-top: 4px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-result-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: .74rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -361,8 +425,12 @@ small {
 }
 
 .mushaf-strip-label {
-  margin-bottom: 9px;
-  text-align: center;
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  font-size: .88rem;
+  letter-spacing: .08em;
+  text-align: left;
 }
 
 .juz-grid {
@@ -379,12 +447,13 @@ small {
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 4px;
+  border-radius: 25px;
   font-weight: 950;
 }
 
 .juz-cell {
   min-height: 30px;
+  font-size: 13px;
 }
 
 .juz-cell.selected {
@@ -394,14 +463,23 @@ small {
 
 .selected-head {
   margin: 11px 0 8px;
+  justify-content: space-between;
+  gap: 8px;
   font-size: .86rem;
+  text-align: left;
+}
+
+.selected-head .section-caption {
+  font-size: .88rem;
+  letter-spacing: .08em;
+  text-align: left;
 }
 
 .summary-pills {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  justify-content: end;
+  justify-content: flex-end;
 }
 
 .small-pill,
@@ -424,16 +502,21 @@ small {
 
 .page-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 6px;
 }
 
 .page-cell {
   min-height: 34px;
-  font-size: .68rem;
+  font-size: 13px;
 }
 
 .empty { background: var(--empty); color: #263500; }
+.juz-cell.empty,
+.page-cell.empty {
+  background: var(--surface-2);
+  color: #f7f7f7;
+}
 .weak { background: var(--weak); color: #f7f7ef; }
 .building { background: var(--building); color: #fef3c7; }
 .strong { background: var(--strong); color: #263500; }
@@ -495,6 +578,14 @@ small {
   border-radius: var(--radius);
   background: var(--surface);
   text-align: left;
+}
+
+.queue-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .list-row-juz {
@@ -574,23 +665,6 @@ small {
   background: transparent;
   color: inherit;
   text-align: left;
-}
-
-.quick-pages {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 7px;
-}
-
-.page-chip {
-  min-height: 58px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-}
-
-.page-chip small {
-  margin-top: 2px;
-  font-size: .66rem;
 }
 
 .empty-state {
@@ -1497,24 +1571,12 @@ mushaf-page-inner {
 }
 
 @media (min-width: 900px) {
-  .home-shell {
-    width: min(980px, calc(100vw - 28px));
-  }
-
   .home-panel {
     display: block;
   }
 
-  .page-grid {
-    grid-template-columns: repeat(10, 1fr);
-  }
-
   .queue-list {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .reader-shell {
-    width: min(560px, calc(100vw - 28px));
   }
 }
 

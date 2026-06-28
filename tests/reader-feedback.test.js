@@ -33,9 +33,19 @@ test("page shell pointerup routes non-drag ayah taps to feedback", () => {
   assert.match(appSource, /handleAyahTap\(ayahMarker\.dataset\.ayah,\s*ayahMarker\)/);
 });
 
+test("ayah count tracking ignores non-primary pointer buttons", () => {
+  assert.match(appSource, /button\.addEventListener\("click",\s*\(event\) => \{[\s\S]*?if \(event\.button !== 0\) return;[\s\S]*?handleAyahTap\(button\.dataset\.ayah,\s*button\)/);
+  assert.match(appSource, /pageShell\.addEventListener\("pointerdown",\s*\(event\) => \{[\s\S]*?if \(event\.button !== 0\) return;[\s\S]*?swipeStart = \{/);
+});
+
 test("long press detail modal cancels active page swipe gesture", () => {
   assert.match(appSource, /function cancelPageGesture\(\)/);
-  assert.match(appSource, /bindLongPress\(button,\s*\(\) => \{[\s\S]*?cancelPageGesture\(\);[\s\S]*?detailTarget = \{ kind: "ayah"/);
+  assert.match(appSource, /bindLongPress\(button,\s*\(\) => openAyahDetail\(button\)\)/);
+  assert.match(appSource, /function openAyahDetail\(button\)\s*\{[\s\S]*?clearPendingTap\(\);[\s\S]*?cancelPageGesture\(\);[\s\S]*?detailTarget = \{ kind: "ayah"/);
+});
+
+test("right click ayah number opens the same detail modal as long press", () => {
+  assert.match(appSource, /button\.addEventListener\("contextmenu",\s*\(event\) => \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?event\.stopPropagation\(\);[\s\S]*?openAyahDetail\(button\);[\s\S]*?\}\)/);
 });
 
 test("desktop text selection bypasses page swipe startup", () => {

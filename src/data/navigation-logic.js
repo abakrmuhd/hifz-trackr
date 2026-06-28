@@ -41,40 +41,83 @@ function scoreSurahQuery(query, surah) {
   return Number.isFinite(best) ? best : null;
 }
 
-export function resolveNavigationTarget(value, metadata, pageCount) {
+function buildPageResult(page) {
+  return {
+    kind: "page",
+    page,
+    primaryLabel: `Page ${page}`,
+    secondaryLabel: null
+  };
+}
+
+function buildSurahResult(surah) {
+  return {
+    kind: "surah",
+    page: surah.startPage,
+    primaryLabel: surah.transliteratedName || surah.englishName || `Surah ${surah.number}`,
+    secondaryLabel: `Surah ${surah.number}`
+  };
+}
+
+function buildJuzResult(juz) {
+  return {
+    kind: "juz",
+    page: juz.startPage,
+    primaryLabel: `Juz ${juz.number}`,
+    secondaryLabel: `Pages ${juz.startPage}-${juz.endPage}`
+  };
+}
+
+export function searchNavigationTargets(value, metadata, pageCount) {
   const text = normalizeSearchText(value);
-  if (!text) return null;
+  if (!text) return [];
 
   const juzMatch = text.match(/\bjuz\s+(\d{1,2})\b/);
   if (juzMatch) {
     const number = Number(juzMatch[1]);
     const juz = metadata.juz.find((item) => item.number === number);
-    return juz ? { page: juz.startPage, kind: "juz" } : null;
+    return juz ? [buildJuzResult(juz)] : [];
   }
 
   const surahMatch = text.match(/\bsurah\s+(\d{1,3})\b/);
   if (surahMatch) {
     const number = Number(surahMatch[1]);
     const surah = metadata.surahs.find((item) => item.number === number);
-    return surah ? { page: surah.startPage, kind: "surah" } : null;
+    return surah ? [buildSurahResult(surah)] : [];
   }
 
   const pageMatch = text.match(/\bpage\s+(\d{1,3})\b/);
   if (pageMatch) {
     const page = Number(pageMatch[1]);
-    return page >= 1 && page <= pageCount ? { page, kind: "page" } : null;
+    return page >= 1 && page <= pageCount ? [buildPageResult(page)] : [];
   }
+
+  const results = [];
 
   if (/^\d{1,3}$/.test(text)) {
     const page = Number(text);
-    return page >= 1 && page <= pageCount ? { page, kind: "page" } : null;
+    if (page >= 1 && page <= pageCount) {
+      results.push({ rank: 0, result: buildPageResult(page) });
+    }
+    const juz = metadata.juz.find((item) => item.number === page);
+    if (juz) {
+      results.push({ rank: 20, result: buildJuzResult(juz) });
+    }
   }
 
-  const ranked = metadata.surahs
-    .map((surah) => ({ surah, score: scoreSurahQuery(text, surah) }))
-    .filter((item) => item.score !== null)
-    .sort((a, b) => a.score - b.score || a.surah.startPage - b.surah.startPage);
+  for (const surah of metadata.surahs) {
+    const score = scoreSurahQuery(text, surah);
+    if (score === null) continue;
+    results.push({ rank: 10 + score, result: buildSurahResult(surah) });
+  }
 
-  if (!ranked.length) return null;
-  return { page: ranked[0].surah.startPage, kind: "surah" };
+  return results
+    .sort((a, b) => a.rank - b.rank || a.result.page - b.result.page)
+    .map((item) => item.result)
+    .slice(0, 8);
+}
+
+export function resolveNavigationTarget(value, metadata, pageCount) {
+  const result = searchNavigationTargets(value, metadata, pageCount)[0];
+  return result ? { page: result.page, kind: result.kind } : null;
 }
