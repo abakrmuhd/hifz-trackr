@@ -1,9 +1,15 @@
-export const APP_DB_NAME = "tap-hifz";
+export const APP_DB_NAME = "hifz-trackr";
 export const APP_DB_VERSION = 1;
 export const APP_STORE_NAME = "app-state";
-export const APP_STATE_KEY = "tap-hifz-app-state";
+export const APP_STATE_KEY = "hifz-trackr-app-state";
+export const LOCAL_STORAGE_KEY = "hifz-trackr-state";
+export const SEED_BACKUP_KEY = "hifz-trackr-seed-backup";
+export const SEED_BACKUP_LOCAL_STORAGE_KEY = "hifz-trackr-seed-backup-state";
+export const LEGACY_APP_DB_NAME = "tap-hifz";
+export const LEGACY_APP_STATE_KEY = "tap-hifz-app-state";
 export const LEGACY_LOCAL_STORAGE_KEY = "tap-hifz-state";
 export const INDEXED_DB_TIMEOUT_MS = 750;
+import { limitRecentPages } from "./recent-pages.js";
 const LEGACY_REPETITION_THRESHOLD_KEY = ["ayah", "Thresholds"].join("");
 const LEGACY_TRANSITION_COUNT_THRESHOLD_KEY = ["transition", "Thresholds"].join("");
 
@@ -17,8 +23,20 @@ export function resolveStoredLastPage(value, recentPages = [], fallback = 1) {
   return page || 1;
 }
 
+export function resolveStoredLastRoute(value, lastPage, fallback = { screen: "home", tab: "progress", page: 1 }) {
+  const validTabs = new Set(["progress", "surahs", "bookmarks"]);
+  const fallbackRoute = fallback || { screen: "home", tab: "progress", page: 1 };
+  const page = resolveStoredLastPage(value?.page, [], lastPage || fallbackRoute.page);
+  const tab = validTabs.has(value?.tab) ? value.tab : (validTabs.has(fallbackRoute.tab) ? fallbackRoute.tab : "progress");
+  const screen = value?.screen === "reading" || value?.screen === "home"
+    ? value.screen
+    : (Number.isInteger(lastPage) && lastPage > 1 ? "reading" : fallbackRoute.screen);
+
+  return { screen, tab, page, target: null };
+}
+
 export function mergeStoredState(base, value) {
-  const mergedRecentPages = Array.isArray(value?.recentPages) ? value.recentPages : base.recentPages;
+  const mergedRecentPages = Array.isArray(value?.recentPages) ? limitRecentPages(value.recentPages) : base.recentPages;
   const savedSettings = value?.settings || {};
   const {
     [LEGACY_REPETITION_THRESHOLD_KEY]: legacyRepetitionThresholds,
@@ -29,7 +47,13 @@ export function mergeStoredState(base, value) {
   return {
     ...cloneValue(base),
     ...value,
+    recentPages: mergedRecentPages,
     lastPage: resolveStoredLastPage(value?.lastPage, mergedRecentPages, base.lastPage),
+    lastRoute: resolveStoredLastRoute(
+      value?.lastRoute,
+      resolveStoredLastPage(value?.lastPage, mergedRecentPages, base.lastPage),
+      base.lastRoute
+    ),
     settings: {
       ...base.settings,
       ...storedSettings,
@@ -47,9 +71,29 @@ export function mergeStoredState(base, value) {
   };
 }
 
-export function selectInitialStateSource({ indexedState, legacyRawState, defaultState }) {
-  if (indexedState) {
-    return { source: APP_STATE_KEY, state: mergeStoredState(defaultState, indexedState) };
+export function selectInitialStateSource({
+  currentIndexedState,
+  legacyIndexedState,
+  localRawState,
+  legacyRawState,
+  defaultState
+}) {
+  if (currentIndexedState) {
+    return { source: APP_STATE_KEY, state: mergeStoredState(defaultState, currentIndexedState) };
+  }
+
+  if (localRawState) {
+    return {
+      source: LOCAL_STORAGE_KEY,
+      state: mergeStoredState(defaultState, JSON.parse(localRawState))
+    };
+  }
+
+  if (legacyIndexedState) {
+    return {
+      source: LEGACY_APP_STATE_KEY,
+      state: mergeStoredState(defaultState, legacyIndexedState)
+    };
   }
 
   if (legacyRawState) {
@@ -86,9 +130,9 @@ function withTimeout(promise, timeoutMs, label) {
   });
 }
 
-function openStateDb() {
+function openStateDb(dbName = APP_DB_NAME) {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(APP_DB_NAME, APP_DB_VERSION);
+    const request = indexedDB.open(dbName, APP_DB_VERSION);
     request.addEventListener("upgradeneeded", () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(APP_STORE_NAME)) db.createObjectStore(APP_STORE_NAME);
@@ -99,8 +143,8 @@ function openStateDb() {
   });
 }
 
-function withStoreRequest(mode, task, mapResult = (request) => request.result) {
-  return openStateDb().then((db) => new Promise((resolve, reject) => {
+function withStoreRequest(mode, task, mapResult = (request) => request.result, dbName = APP_DB_NAME) {
+  return openStateDb(dbName).then((db) => new Promise((resolve, reject) => {
     const transaction = db.transaction(APP_STORE_NAME, mode);
     const store = transaction.objectStore(APP_STORE_NAME);
     const request = task(store);
@@ -137,30 +181,70 @@ async function readIndexedState() {
   return withStoreRequest("readonly", (store) => store.get(APP_STATE_KEY), (request) => request.result || null);
 }
 
+async function readLegacyIndexedState() {
+  return withStoreRequest(
+    "readonly",
+    (store) => store.get(LEGACY_APP_STATE_KEY),
+    (request) => request.result || null,
+    LEGACY_APP_DB_NAME
+  );
+}
+
 async function writeIndexedState(state) {
   await withStoreRequest("readwrite", (store) => store.put(state, APP_STATE_KEY), () => undefined);
 }
 
+async function readIndexedValue(key) {
+  return withStoreRequest("readonly", (store) => store.get(key), (request) => request.result || null);
+}
+
+async function writeIndexedValue(key, value) {
+  await withStoreRequest("readwrite", (store) => store.put(value, key), () => undefined);
+}
+
+async function deleteIndexedValue(key) {
+  await withStoreRequest("readwrite", (store) => store.delete(key), () => undefined);
+}
+
 export async function loadPersistedState(defaultState) {
-  let indexedState = null;
+  let currentIndexedState = null;
+  let legacyIndexedState = null;
   if (canUseIndexedDb()) {
     try {
-      indexedState = await withTimeout(readIndexedState(), INDEXED_DB_TIMEOUT_MS, "IndexedDB read");
+      currentIndexedState = await withTimeout(readIndexedState(), INDEXED_DB_TIMEOUT_MS, "IndexedDB read");
     } catch {
-      indexedState = null;
+      currentIndexedState = null;
+    }
+
+    if (!currentIndexedState) {
+      try {
+        legacyIndexedState = await withTimeout(readLegacyIndexedState(), INDEXED_DB_TIMEOUT_MS, "Legacy IndexedDB read");
+      } catch {
+        legacyIndexedState = null;
+      }
     }
   }
 
+  const localRawState = canUseLocalStorage() ? localStorage.getItem(LOCAL_STORAGE_KEY) : null;
   const legacyRawState = canUseLocalStorage() ? localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY) : null;
-  const selected = selectInitialStateSource({ indexedState, legacyRawState, defaultState });
+  const selected = selectInitialStateSource({
+    currentIndexedState,
+    legacyIndexedState,
+    localRawState,
+    legacyRawState,
+    defaultState
+  });
 
-  if (selected.source === LEGACY_LOCAL_STORAGE_KEY && canUseIndexedDb()) {
+  if (selected.source !== APP_STATE_KEY && canUseIndexedDb()) {
     try {
       await withTimeout(writeIndexedState(selected.state), INDEXED_DB_TIMEOUT_MS, "IndexedDB write");
-      if (canUseLocalStorage()) localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY);
+      if (canUseLocalStorage()) {
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY);
+      }
     } catch {
       if (canUseLocalStorage()) {
-        localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, JSON.stringify(selected.state));
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(selected.state));
       }
     }
   }
@@ -178,5 +262,46 @@ export async function savePersistedState(state) {
     }
   }
 
-  if (canUseLocalStorage()) localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, JSON.stringify(state));
+  if (canUseLocalStorage()) localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+}
+
+export async function loadSeedBackup() {
+  if (canUseIndexedDb()) {
+    try {
+      const value = await withTimeout(readIndexedValue(SEED_BACKUP_KEY), INDEXED_DB_TIMEOUT_MS, "IndexedDB seed backup read");
+      if (value) return value;
+    } catch {
+      // Fall back to localStorage below.
+    }
+  }
+
+  if (!canUseLocalStorage()) return null;
+  const raw = localStorage.getItem(SEED_BACKUP_LOCAL_STORAGE_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function saveSeedBackup(state) {
+  if (canUseIndexedDb()) {
+    try {
+      await withTimeout(writeIndexedValue(SEED_BACKUP_KEY, state), INDEXED_DB_TIMEOUT_MS, "IndexedDB seed backup write");
+      if (canUseLocalStorage()) localStorage.removeItem(SEED_BACKUP_LOCAL_STORAGE_KEY);
+      return;
+    } catch {
+      // Fall back to localStorage below.
+    }
+  }
+
+  if (canUseLocalStorage()) localStorage.setItem(SEED_BACKUP_LOCAL_STORAGE_KEY, JSON.stringify(state));
+}
+
+export async function clearSeedBackup() {
+  if (canUseIndexedDb()) {
+    try {
+      await withTimeout(deleteIndexedValue(SEED_BACKUP_KEY), INDEXED_DB_TIMEOUT_MS, "IndexedDB seed backup delete");
+    } catch {
+      // Fall through to localStorage cleanup.
+    }
+  }
+
+  if (canUseLocalStorage()) localStorage.removeItem(SEED_BACKUP_LOCAL_STORAGE_KEY);
 }

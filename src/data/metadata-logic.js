@@ -92,6 +92,7 @@ export function buildLowCountItems({
       kind: "Ayah",
       key,
       count: value.repetitionCount,
+      countLevel: getCountLevelClass(value.repetitionCount, repetitionThresholds),
       page: metadata.ayahToPage[key],
       label: labelAyah(key),
       level: 1
@@ -103,12 +104,32 @@ export function buildLowCountItems({
       kind: "Transition",
       key,
       count: value.repetitionCount,
+      countLevel: getCountLevelClass(value.repetitionCount, transitionCountThresholds),
       page: Number(key.split("|")[0]),
       label: labelTransition(key),
       level: 1
     }));
 
   return [...ayahs, ...transitions].sort((a, b) => a.level - b.level || a.count - b.count || a.page - b.page);
+}
+
+export function resolveOutgoingTransition(ayahKey, metadata) {
+  const page = metadata.ayahToPage?.[ayahKey];
+  if (!page) return null;
+
+  const ayahKeys = Object.entries(metadata.pages || {})
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .flatMap(([, pageData]) => pageData.ayahKeys || []);
+  const index = ayahKeys.indexOf(ayahKey);
+  const next = index >= 0 ? ayahKeys[index + 1] : null;
+  if (!next || next.split(":")[0] !== ayahKey.split(":")[0]) return null;
+
+  return {
+    key: `${page}|${ayahKey}|${next}`,
+    page,
+    from: ayahKey,
+    to: next
+  };
 }
 
 export function resolveActiveTarget({ review, routeTarget }) {

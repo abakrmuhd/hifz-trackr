@@ -84,12 +84,15 @@ test("renderQcf4Page can attach interactive attrs to ayah markers", () => {
     buildAyahAttrs: () => "",
     buildAyahMarkerClass: () => "ayah-marker ayah-mark weak",
     buildAyahMarkerAttrs: (key) => `data-ayah="${key}" role="button"`,
+    buildAyahMarkerStyle: () => "--count-color: #abda1a",
     buildGroupClass: () => "ayah-group"
   });
 
   assert.match(html, /class="ayah-marker ayah-mark weak"/);
   assert.match(html, /data-ayah="1:1"/);
   assert.match(html, /role="button"/);
+  assert.match(html, /style="font-family: &#039;QCF2001&#039;; --count-color: #abda1a"/);
+  assert.doesNotMatch(html, /style="[^"]*"\s+style="/);
 });
 
 test("app wires QCF4 pages into the reader with legacy fallback", () => {
@@ -112,6 +115,12 @@ test("styles define Muhaffidh-like QCF4 page metrics", () => {
   assert.match(styles, /mushaf-page\s*\{[\s\S]*width:\s*100%/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*font-size:\s*min\(29px,\s*5\.55cqw\)/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*line-height:\s*min\(44px,\s*8\.42cqw\)/);
+  assert.match(styles, /--mushaf-page-content-height:\s*min\(660px,\s*126\.3vw\)/);
+  assert.match(styles, /\.ayah-chars\s+\.line\s*\{[\s\S]*height:\s*min\(44px,\s*8\.42cqw\)/);
+  assert.match(styles, /\.qcf4-slot\s*\{[\s\S]*overflow:\s*visible/);
+  assert.match(styles, /\.page-shell\s*\{[\s\S]*cursor:\s*grab/);
+  assert.match(styles, /\.page-slot\.current\s+\.ayah-marker\[data-ayah\][\s\S]*cursor:\s*pointer/);
+  assert.match(styles, /\.page-shell\.dragging\s+\.ayah-marker\[data-ayah\][\s\S]*cursor:\s*grabbing/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*letter-spacing:\s*-2\.1px/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*white-space:\s*nowrap/);
   assert.match(styles, /\.ayah-chars\s+\.space\s*\{[\s\S]*font-size:\s*2px/);
