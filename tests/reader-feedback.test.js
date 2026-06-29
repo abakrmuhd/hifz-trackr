@@ -137,6 +137,7 @@ test("home and reader expose help buttons before settings and reader actions", (
 test("help modal contains the four tutorial topics", () => {
   assert.match(appSource, /const helpSlides = \[/);
   assert.match(appSource, /title:\s*"Progress colors"/);
+  assert.match(appSource, /Grey\/white means not started/);
   assert.match(appSource, /title:\s*"Open a page"/);
   assert.match(appSource, /title:\s*"Track practice"/);
   assert.match(appSource, /title:\s*"Inspect details"/);
@@ -149,10 +150,16 @@ test("opening help marks the first-time guide as seen", () => {
 
 test("help button pulse and modal styles are defined", () => {
   assert.match(styles, /\.help-btn\.first-run-pulse::after/);
+  assert.match(styles, /\.help-btn\.first-run-pulse::after\s*\{[\s\S]*border-radius:\s*50%/);
+  assert.match(styles, /\.help-btn\.first-run-pulse::after\s*\{[\s\S]*transform:\s*translate\(-50%,\s*-50%\) scale\(\.92\)/);
   assert.match(styles, /@keyframes help-pulse/);
   assert.match(styles, /\.help-modal/);
   assert.match(styles, /\.help-slide/);
   assert.match(styles, /\.help-progress/);
+});
+
+test("help modal is vertically centered", () => {
+  assert.match(styles, /\.modal-backdrop:has\(\.help-modal\)\s*\{[\s\S]*place-items:\s*center/);
 });
 
 test("help pulse respects reduced motion", () => {

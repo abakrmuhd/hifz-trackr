@@ -506,7 +506,7 @@ const helpSlides = [
   {
     title: "Progress colors",
     eyebrow: "Color logic",
-    body: "Grey means not started. The more you repeat, the greener the ayah marker becomes. Page and juz cells stay honest by following the weakest ayah or transition inside them.",
+    body: "Grey/white means not started. The more you repeat, the greener the ayah marker becomes. Page and juz cells stay honest by following the weakest ayah or transition inside them.",
     visual: "colors"
   },
   {
