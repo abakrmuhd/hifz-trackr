@@ -87,6 +87,7 @@ const defaultState = {
   ayahBookmarks: [],
   pageBookmarks: [],
   practiceEvents: [],
+  helpSeen: false,
   settings: {
     theme: "dark",
     sound: false,

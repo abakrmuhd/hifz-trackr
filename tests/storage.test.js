@@ -26,6 +26,7 @@ const defaultState = {
   ayahBookmarks: [],
   pageBookmarks: [],
   practiceEvents: [],
+  helpSeen: false,
   settings: {
     theme: "dark",
     sound: false,
@@ -169,6 +170,14 @@ test("mergeStoredState caps stored recent pages at five items", () => {
   });
 
   assert.deepEqual(merged.recentPages, [12, 11, 10, 9, 8]);
+});
+
+test("mergeStoredState preserves the help seen flag when stored", () => {
+  const merged = mergeStoredState(defaultState, {
+    helpSeen: true
+  });
+
+  assert.equal(merged.helpSeen, true);
 });
 
 test("loadPersistedState resolves IndexedDB reads even when request succeeds before transaction completes", async () => {
