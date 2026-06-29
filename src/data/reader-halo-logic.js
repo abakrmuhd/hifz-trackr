@@ -12,12 +12,14 @@ export function buildRepetitionRingState({
   transitionCountThresholds
 }) {
   const hasTransitionRing = transitionCount != null;
+  const repetitionCountLevel = getCountLevelClass(repetitionCount, repetitionThresholds);
+  const transitionCountLevel =
+    transitionCount == null ? null : getCountLevelClass(transitionCount, transitionCountThresholds);
   return {
-    repetitionCountLevel: getCountLevelClass(repetitionCount, repetitionThresholds),
+    repetitionCountLevel,
     repetitionCountColor: buildCountProgressColor(repetitionCount, repetitionThresholds),
     repetitionCountInkColor: buildCountProgressInkColor(repetitionCount, repetitionThresholds),
-    transitionCountLevel:
-      transitionCount == null ? null : getCountLevelClass(transitionCount, transitionCountThresholds),
+    transitionCountLevel,
     transitionCountColor:
       transitionCount == null ? null : buildCountProgressColor(transitionCount, transitionCountThresholds),
     transitionCountInkColor:
@@ -25,7 +27,8 @@ export function buildRepetitionRingState({
     transitionProgressPercent: hasTransitionRing
       ? buildCountProgressPercent(transitionCount, transitionCountThresholds)
       : 0,
-    hasTransitionRing
+    hasTransitionRing,
+    isFullyMastered: repetitionCountLevel === "mastered" && transitionCountLevel === "mastered"
   };
 }
 

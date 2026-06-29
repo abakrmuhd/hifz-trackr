@@ -63,6 +63,7 @@ test("renderQcf4Page mirrors Muhaffidh-style structure", () => {
   assert.match(html, /<mushaf-page-inner>/);
   assert.match(html, /class="ayah-chars/);
   assert.match(html, /class="line/);
+  assert.match(html, /class="line centered-line surah-title-line"/);
   assert.match(html, /class="ayah-group"/);
   assert.match(html, /data-ayah="1:1"/);
   assert.match(html, /class="word"/);
@@ -91,6 +92,7 @@ test("renderQcf4Page can attach interactive attrs to ayah markers", () => {
   assert.match(html, /class="ayah-marker ayah-mark weak"/);
   assert.match(html, /data-ayah="1:1"/);
   assert.match(html, /role="button"/);
+  assert.match(html, /<span class="ayah-marker ayah-mark weak"[\s\S]*><span class="ayah-mark-glyph">c<\/span><\/span>/);
   assert.match(html, /style="font-family: &#039;QCF2001&#039;; --count-color: #abda1a"/);
   assert.doesNotMatch(html, /style="[^"]*"\s+style="/);
 });
@@ -114,13 +116,17 @@ test("styles define Muhaffidh-like QCF4 page metrics", () => {
   assert.match(styles, /@font-face[\s\S]*font-family:\s*["']?QCF2000/);
   assert.match(styles, /mushaf-page\s*\{[\s\S]*width:\s*100%/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*font-size:\s*min\(29px,\s*5\.55cqw\)/);
-  assert.match(styles, /\.ayah-chars\s*\{[\s\S]*line-height:\s*min\(44px,\s*8\.42cqw\)/);
-  assert.match(styles, /--mushaf-page-content-height:\s*min\(660px,\s*126\.3vw\)/);
-  assert.match(styles, /\.ayah-chars\s+\.line\s*\{[\s\S]*height:\s*min\(44px,\s*8\.42cqw\)/);
+  assert.match(styles, /\.ayah-chars\s*\{[\s\S]*line-height:\s*min\(48\.4px,\s*9\.262cqw\)/);
+  assert.match(styles, /--mushaf-page-content-height:\s*min\(726px,\s*138\.93vw\)/);
+  assert.match(styles, /\.ayah-chars\s+\.line\s*\{[\s\S]*height:\s*min\(48\.4px,\s*9\.262cqw\)/);
   assert.match(styles, /\.qcf4-slot\s*\{[\s\S]*overflow:\s*visible/);
   assert.match(styles, /\.page-shell\s*\{[\s\S]*cursor:\s*grab/);
   assert.match(styles, /\.page-slot\.current\s+\.ayah-marker\[data-ayah\][\s\S]*cursor:\s*pointer/);
   assert.match(styles, /\.page-shell\.dragging\s+\.ayah-marker\[data-ayah\][\s\S]*cursor:\s*grabbing/);
+  const surahTitleLineRule = styles.match(/\.ayah-chars\s+\.surah-title-line\s*\{[^}]*\}/)?.[0] || "";
+  assert.match(surahTitleLineRule, /border:\s*1px\s+solid\s+var\(--mastered\)/);
+  assert.match(surahTitleLineRule, /border-radius:\s*12px/);
+  assert.match(surahTitleLineRule, /color:\s*var\(--mastered\)/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*letter-spacing:\s*-2\.1px/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*white-space:\s*nowrap/);
   assert.match(styles, /\.ayah-chars\s+\.space\s*\{[\s\S]*font-size:\s*2px/);

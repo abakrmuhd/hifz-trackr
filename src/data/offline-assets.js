@@ -1,12 +1,12 @@
-export const CACHE_VERSION = "hifz-trackr-v52-progress-cell-gradient";
+export const CACHE_VERSION = "hifz-trackr-v60-juz-page-zoom";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-06-28-progress-cell-gradient",
-  "/src/styles.css?v=2026-06-28-progress-cell-gradient"
+  "/src/app.js?v=2026-06-30-juz-page-zoom",
+  "/src/styles.css?v=2026-06-30-juz-page-zoom"
 ];
 
 export const DATA_ASSETS = [
@@ -27,7 +27,7 @@ export const DATA_ASSETS = [
 export const READER_ASSETS = [
   "/src/reader/qcf4-data.js",
   "/src/reader/qcf4-logic.js",
-  "/src/reader/qcf4-renderer.js?v=2026-06-27-count-gradient",
+  "/src/reader/qcf4-renderer.js?v=2026-06-29-surah-title-box",
   "/src/reader/swipe-reveal.js"
 ];
 

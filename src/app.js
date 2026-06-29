@@ -44,7 +44,7 @@ import { getLineFitClass } from "./data/mushaf-line-fit.js?v=2026-06-26-density-
 import { shouldRegisterServiceWorker } from "./data/runtime-environment.js";
 import { fetchQcf4Page } from "./reader/qcf4-data.js?v=2026-06-26-qcf4-renderer";
 import { collectQcf4AyahKeys } from "./reader/qcf4-logic.js?v=2026-06-26-qcf4-renderer";
-import { renderQcf4Page } from "./reader/qcf4-renderer.js?v=2026-06-27-count-gradient";
+import { renderQcf4Page } from "./reader/qcf4-renderer.js?v=2026-06-29-surah-title-box";
 import {
   buildTrackPages,
   clampTrackOffset,
@@ -109,6 +109,7 @@ let trackPages = {
 };
 let metadata = null;
 let selectedJuz = 1;
+let animatePageGridOnRender = false;
 let pendingTap = null;
 let undoVisible = false;
 let detailTarget = null;
@@ -298,6 +299,7 @@ function render() {
   if (helpOpen) app.insertAdjacentHTML("beforeend", renderHelpModal());
   if (detailTarget) app.insertAdjacentHTML("beforeend", renderDetails());
   bindScreenEvents();
+  animatePageGridOnRender = false;
 }
 
 function renderHome() {
@@ -343,7 +345,7 @@ function renderProgress() {
   const pages = [];
   for (let page = current[1]; page <= current[2]; page += 1) {
     const progressState = pageCellProgressState(page);
-    pages.push(`<button class="page-cell ${cellProgressClass(progressState)}"${cellProgressStyle(progressState)} data-page="${page}">${page}</button>`);
+    pages.push(`<button class="page-cell ${cellProgressClass(progressState)}"${cellProgressStyle(progressState, pages.length)} data-page="${page}"><span class="page-cell-number">${page}</span></button>`);
   }
   const lowCountItems = getLowCountItems();
   const previewItems = lowCountItems.slice(0, previewQueueSize);
@@ -356,7 +358,7 @@ function renderProgress() {
         <strong class="section-caption">Page</strong>
         <span class="summary-pills"><span class="small-pill weak">${countPages(current, "weak")} weak</span><span class="small-pill strong">${countHighCountPages(current)} strong</span></span>
       </div>
-      <div class="page-grid" dir="ltr">${pages.join("")}</div>
+      <div class="page-grid ${animatePageGridOnRender ? "page-grid-zoom" : ""}" dir="ltr">${pages.join("")}</div>
     </div>
     <h3 class="label">Practice Next</h3>
     <div class="queue-list">
@@ -504,12 +506,6 @@ function renderReading() {
 
 const helpSlides = [
   {
-    title: "Progress colors",
-    eyebrow: "Color logic",
-    body: "Grey/white means not started. The more you repeat, the greener the ayah marker becomes. Page and juz cells stay honest by following the weakest ayah or transition inside them.",
-    visual: "colors"
-  },
-  {
     title: "Open a page",
     eyebrow: "Navigation",
     body: "Use Progress to pick a juz and page, Surahs to jump by surah, Bookmarks to return to saved places, or search for a page, surah, or juz.",
@@ -518,7 +514,7 @@ const helpSlides = [
   {
     title: "Track practice",
     eyebrow: "Tap rhythm",
-    body: "Tap an ayah number once to add a repetition. Double tap the same ayah to count the transition from that ayah into the next one.",
+    body: "Use one tap when you repeat that ayah by itself. Use two quick taps when you practice connecting that ayah into the next one. Hifz Trackr keeps those counts separate so you can see both ayah strength and transition strength.",
     visual: "tap"
   },
   {
@@ -526,6 +522,12 @@ const helpSlides = [
     eyebrow: "Long press",
     body: "Long press an ayah marker to open its detail view, where you can inspect counts, decrement mistakes, reset an item, or bookmark the ayah.",
     visual: "details"
+  },
+  {
+    title: "Progress colors",
+    eyebrow: "Color logic",
+    body: "Grey/white means not started. The more you repeat, the greener the ayah marker becomes. Page and juz cells stay honest by following the weakest ayah or transition inside them.",
+    visual: "colors"
   }
 ];
 
@@ -563,15 +565,75 @@ function renderHelpModal() {
 
 function renderHelpVisual(type) {
   if (type === "colors") {
-    return `<div class="help-color-row"><span class="empty"></span><span class="weak"></span><span class="building"></span><span class="strong"></span><span class="mastered"></span></div>`;
+    const colorLevels = [
+      { level: "empty", progress: 0, clip: 50, ink: "#263500" },
+      { level: "weak", progress: 25, clip: 37.5, ink: "#f7f7ef" },
+      { level: "building", progress: 50, clip: 25, ink: "#fef3c7" },
+      { level: "strong", progress: 75, clip: 12.5, ink: "#263500" },
+      { level: "mastered", progress: 100, clip: 0, ink: "#263500" }
+    ];
+    return `
+      <div class="help-color-row">
+        ${colorLevels.map(({ level, progress, clip, ink }) => `
+          <span class="ayah-marker ayah-mark ${level} transition-count-${level} help-color-marker" style="font-family: 'QCF2001'; --count-color: var(--${level}); --count-ink: ${ink}; --transition-progress: ${progress}%; --transition-clip: ${clip}%; --transition-color: var(--${level})">&#xf1a3;</span>
+        `).join("")}
+      </div>
+    `;
   }
   if (type === "navigation") {
-    return `<div class="help-nav-grid"><span>Progress</span><span>Surahs</span><span>Bookmarks</span></div>`;
+    return `
+      <div class="help-home-preview" aria-label="Home navigation preview">
+        <div class="help-search-box">
+          ${icons.search}
+          <span>Page 48, Al-Baqarah, Juz 3</span>
+        </div>
+        <div class="help-home-tabs">
+          <span class="active">Progress</span>
+          <span>Surahs</span>
+          <span>Bookmarks</span>
+        </div>
+      </div>
+    `;
   }
   if (type === "tap") {
-    return `<div class="help-tap-demo"><span>1 tap</span><strong>١٢</strong><span>2 taps</span></div>`;
+    return `
+      <div class="help-tap-demo">
+        <span class="help-tap-label single">1 tap</span>
+        <div class="help-ayah-demo" aria-label="Ayah 12 with transition count line">
+          <span class="ayah-marker ayah-mark building transition-count-building help-ayah-glyph" style="font-family: 'QCF2001'; --count-color: var(--building); --count-ink: #fef3c7; --transition-progress: 62%; --transition-clip: 19%; --transition-color: var(--building)">&#xf1a3;</span>
+          <span class="help-plus-pop ayah" aria-hidden="true">+</span>
+          <span class="help-plus-pop transition" aria-hidden="true">+</span>
+          <span class="help-hand-tap" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M8.5 12.5V5.8a1.7 1.7 0 1 1 3.4 0v5.5"/>
+              <path d="M11.9 11V8.4a1.6 1.6 0 1 1 3.2 0V12"/>
+              <path d="M15.1 12V9.9a1.5 1.5 0 0 1 3 0v4.8c0 3.1-2.3 5.3-5.5 5.3h-1.1a5.1 5.1 0 0 1-4.1-2.1l-2.5-3.3a1.5 1.5 0 0 1 .2-2.1 1.7 1.7 0 0 1 2.3.2l1.1 1.1"/>
+            </svg>
+          </span>
+        </div>
+        <span class="help-tap-label double">2 taps</span>
+      </div>
+    `;
   }
-  return `<div class="help-detail-demo"><strong>Ayah detail</strong><span>Count · Reset · Bookmark</span></div>`;
+  return `
+    <div class="help-long-press-demo">
+      <div class="help-ayah-demo help-detail-marker-wrap">
+        <span class="ayah-marker ayah-mark building transition-count-building help-ayah-glyph help-detail-glyph" style="font-family: 'QCF2001'; --count-color: var(--building); --count-ink: #fef3c7; --transition-progress: 62%; --transition-clip: 19%; --transition-color: var(--building)">&#xf1a3;</span>
+        <span class="help-long-press-ring" aria-hidden="true"></span>
+        <span class="help-hand-tap help-long-press-hand" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M8.5 12.5V5.8a1.7 1.7 0 1 1 3.4 0v5.5"/>
+            <path d="M11.9 11V8.4a1.6 1.6 0 1 1 3.2 0V12"/>
+            <path d="M15.1 12V9.9a1.5 1.5 0 0 1 3 0v4.8c0 3.1-2.3 5.3-5.5 5.3h-1.1a5.1 5.1 0 0 1-4.1-2.1l-2.5-3.3a1.5 1.5 0 0 1 .2-2.1 1.7 1.7 0 0 1 2.3.2l1.1 1.1"/>
+          </svg>
+        </span>
+      </div>
+      <div class="help-detail-card" aria-hidden="true">
+        <strong>Ayah detail</strong>
+        <span>Count · Reset · Bookmark</span>
+      </div>
+    </div>
+  `;
 }
 
 function renderPageSlot(pageData, pageNumber, slotName, inert = false, activeTarget = null) {
@@ -637,6 +699,7 @@ function renderWord(word, activeTarget, options = {}) {
     "ayah-mark",
     ringState.repetitionCountLevel,
     ringState.hasTransitionRing ? `transition-count-${ringState.transitionCountLevel}` : "",
+    ringState.isFullyMastered ? "fully-mastered" : "",
     transitionActive ? "transition-target" : "",
     ayahActive ? "target" : ""
   ].filter(Boolean).join(" ");
@@ -647,7 +710,7 @@ function renderWord(word, activeTarget, options = {}) {
   if (options.inert) {
     return `
       <span class="qword">${escapeHtml(match[1])}</span>
-      <span class="${ayahClass}"${ayahStyle} aria-hidden="true">${match[2]}</span>
+      <span class="${ayahClass}"${ayahStyle} aria-hidden="true"><span class="ayah-mark-glyph">${match[2]}</span></span>
     `;
   }
   const ariaLabel = buildRepetitionAriaLabel({
@@ -657,7 +720,7 @@ function renderWord(word, activeTarget, options = {}) {
   });
   return `
     <span class="qword">${escapeHtml(match[1])}</span>
-    <button class="${ayahClass}"${ayahStyle} data-ayah="${key}" data-page="${pageNumber}" aria-label="${ariaLabel}">${match[2]}</button>
+    <button class="${ayahClass}"${ayahStyle} data-ayah="${key}" data-page="${pageNumber}" aria-label="${ariaLabel}"><span class="ayah-mark-glyph">${match[2]}</span></button>
   `;
 }
 
@@ -703,6 +766,7 @@ function buildQcf4AyahMarkerClass(key, activeTarget) {
     "ayah-mark",
     ringState.repetitionCountLevel,
     ringState.hasTransitionRing ? `transition-count-${ringState.transitionCountLevel}` : "",
+    ringState.isFullyMastered ? "fully-mastered" : "",
     transitionActive ? "transition-target" : "",
     ayahActive ? "target" : ""
   ].filter(Boolean).join(" ");
@@ -916,7 +980,12 @@ function bindScreenEvents() {
   });
   app.querySelectorAll("[data-tab]").forEach((button) => button.addEventListener("click", () => goHome(button.dataset.tab)));
   app.querySelectorAll("[data-page]:not([data-ayah])").forEach((button) => button.addEventListener("click", () => openPage(Number(button.dataset.page), { target: button.dataset.target || null })));
-  app.querySelectorAll("[data-juz]").forEach((button) => button.addEventListener("click", () => { selectedJuz = Number(button.dataset.juz); render(); }));
+  app.querySelectorAll("[data-juz]").forEach((button) => button.addEventListener("click", () => {
+    const nextJuz = Number(button.dataset.juz);
+    animatePageGridOnRender = nextJuz !== selectedJuz;
+    selectedJuz = nextJuz;
+    render();
+  }));
   app.querySelectorAll("[data-review-target]").forEach((button) => button.addEventListener("click", () => {
     const item = JSON.parse(decodeURIComponent(button.dataset.reviewTarget));
     openPage(item.page, { target: item.key });
@@ -1532,11 +1601,12 @@ function cellProgressClass(progressState) {
   return progressState.empty ? "empty" : "progress-cell";
 }
 
-function cellProgressStyle(progressState) {
-  if (progressState.empty) return "";
+function cellProgressStyle(progressState, cellIndex = null) {
+  const indexStyle = cellIndex == null ? "" : `--cell-index: ${cellIndex};`;
+  if (progressState.empty) return indexStyle ? ` style="${indexStyle}"` : "";
   const progress = Math.round(progressState.progress * 1000) / 10;
   const ink = progressState.progress >= 0.64 ? "#263500" : "#f7f7ef";
-  return ` style="--cell-progress: ${progress}%; --cell-ink: ${ink}"`;
+  return ` style="--cell-progress: ${progress}%; --cell-ink: ${ink}; ${indexStyle}"`;
 }
 
 function countPages(range, target) {
@@ -1801,8 +1871,34 @@ function rememberCurrentRoute() {
 
 function bindLongPress(el, callback) {
   let timer = null;
-  el.addEventListener("pointerdown", () => { timer = setTimeout(callback, 520); });
-  ["pointerup", "pointerleave", "pointercancel"].forEach((event) => el.addEventListener(event, () => clearTimeout(timer)));
+  let cleanupPointerEnd = null;
+  const clear = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    cleanupPointerEnd?.();
+    cleanupPointerEnd = null;
+  };
+  el.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    clear();
+    const pointerId = event.pointerId;
+    const clearMatchingPointer = (nextEvent) => {
+      if (nextEvent.pointerId === pointerId) clear();
+    };
+    cleanupPointerEnd = () => {
+      document.removeEventListener("pointerup", clearMatchingPointer, true);
+      document.removeEventListener("pointercancel", clearMatchingPointer, true);
+    };
+    document.addEventListener("pointerup", clearMatchingPointer, true);
+    document.addEventListener("pointercancel", clearMatchingPointer, true);
+    timer = setTimeout(() => {
+      timer = null;
+      cleanupPointerEnd?.();
+      cleanupPointerEnd = null;
+      callback();
+    }, 520);
+  });
+  el.addEventListener("pointerleave", clear);
 }
 
 function openAyahDetail(button) {

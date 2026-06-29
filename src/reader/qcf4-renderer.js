@@ -22,7 +22,10 @@ function renderGlyphItem(item, index, items, group, options) {
     : "";
   const style = [`font-family: '${family}'`, markerStyle].filter(Boolean).join("; ");
   const space = index < items.length - 1 ? '<span class="space"> </span>' : "";
-  return `<span class="${typeClass}"${markerAttrs} style="${escapeHtml(style)}">${glyph}</span>${space}`;
+  const content = item.type === "ayah-marker"
+    ? `<span class="ayah-mark-glyph">${glyph}</span>`
+    : glyph;
+  return `<span class="${typeClass}"${markerAttrs} style="${escapeHtml(style)}">${content}</span>${space}`;
 }
 
 function renderGlyphs(glyphs = [], group, options) {
@@ -37,7 +40,7 @@ function renderAyahGroup(group, line, options) {
 
 function renderLine(line, options) {
   if (line.type === "surah-header") {
-    return `<span class="line centered-line">${renderGlyphs(line.glyphs, null, options)}</span>`;
+    return `<span class="line centered-line surah-title-line">${renderGlyphs(line.glyphs, null, options)}</span>`;
   }
 
   if (line.type === "basmala") {

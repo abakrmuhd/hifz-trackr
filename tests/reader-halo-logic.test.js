@@ -27,7 +27,8 @@ test("buildRepetitionRingState maps repetition and transition counts into badge 
       transitionCountColor: "#d4e2a3",
       transitionCountInkColor: "#263500",
       transitionProgressPercent: 30,
-      hasTransitionRing: true
+      hasTransitionRing: true,
+      isFullyMastered: false
     }
   );
 });
@@ -48,8 +49,31 @@ test("buildRepetitionRingState omits the ring when no transition is available", 
       transitionCountColor: null,
       transitionCountInkColor: null,
       transitionProgressPercent: 0,
-      hasTransitionRing: false
+      hasTransitionRing: false,
+      isFullyMastered: false
     }
+  );
+});
+
+test("buildRepetitionRingState flags ayahs with mastered repetition and transition counts", () => {
+  assert.equal(
+    buildRepetitionRingState({
+      repetitionCount: 40,
+      transitionCount: 40,
+      repetitionThresholds,
+      transitionCountThresholds
+    }).isFullyMastered,
+    true
+  );
+
+  assert.equal(
+    buildRepetitionRingState({
+      repetitionCount: 40,
+      transitionCount: 39,
+      repetitionThresholds,
+      transitionCountThresholds
+    }).isFullyMastered,
+    false
   );
 });
 
