@@ -146,3 +146,15 @@ test("help modal contains the four tutorial topics", () => {
 test("opening help marks the first-time guide as seen", () => {
   assert.match(appSource, /async function openHelp\(\)\s*\{[\s\S]*?helpOpen = true;[\s\S]*?state\.helpSeen = true;[\s\S]*?await saveState\(\);/);
 });
+
+test("help button pulse and modal styles are defined", () => {
+  assert.match(styles, /\.help-btn\.first-run-pulse::after/);
+  assert.match(styles, /@keyframes help-pulse/);
+  assert.match(styles, /\.help-modal/);
+  assert.match(styles, /\.help-slide/);
+  assert.match(styles, /\.help-progress/);
+});
+
+test("help pulse respects reduced motion", () => {
+  assert.match(styles, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.help-btn\.first-run-pulse::after[\s\S]*animation:\s*none/);
+});

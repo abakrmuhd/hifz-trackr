@@ -215,6 +215,37 @@ small {
   height: 34px;
 }
 
+.help-btn {
+  position: relative;
+}
+
+.help-btn.first-run-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(171, 218, 26, .65);
+  border-radius: inherit;
+  animation: help-pulse 1.6s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes help-pulse {
+  0% {
+    opacity: .85;
+    transform: scale(.92);
+  }
+
+  70% {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+}
+
 .search-box {
   display: flex;
   align-items: center;
@@ -1308,6 +1339,116 @@ mushaf-page-inner {
   gap: 14px;
 }
 
+.help-modal {
+  width: min(100%, 420px);
+}
+
+.help-slide {
+  display: grid;
+  gap: 12px;
+}
+
+.help-slide h2 {
+  font-size: 1.35rem;
+}
+
+.help-slide p {
+  color: var(--muted);
+  line-height: 1.48;
+}
+
+.help-visual {
+  display: grid;
+  place-items: center;
+  min-height: 132px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at top left, rgba(171, 218, 26, .14), transparent 48%),
+    var(--surface);
+}
+
+.help-color-row,
+.help-nav-grid,
+.help-tap-demo,
+.help-detail-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.help-color-row span {
+  width: 44px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+
+.help-color-row .empty { background: var(--empty); }
+.help-color-row .weak { background: var(--weak); }
+.help-color-row .building { background: var(--building); }
+.help-color-row .strong { background: var(--strong); }
+.help-color-row .mastered { background: var(--mastered); }
+
+.help-nav-grid span,
+.help-tap-demo span,
+.help-detail-demo span {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: .86rem;
+}
+
+.help-tap-demo strong {
+  display: inline-grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  background: var(--mastered);
+  color: #263500;
+  font-family: "QCF2001", serif;
+  font-size: 2rem;
+}
+
+.help-detail-demo {
+  flex-direction: column;
+}
+
+.help-detail-demo strong {
+  color: var(--text);
+}
+
+.help-progress {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.help-progress span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.help-progress span.active {
+  width: 24px;
+  background: var(--mastered);
+}
+
+.help-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 18px;
+}
+
 .detail-head-actions,
 .detail-metric-value-line {
   display: flex;
@@ -1690,5 +1831,10 @@ mushaf-page-inner {
 
   .repetition-count-pop {
     animation-duration: .68s !important;
+  }
+
+  .help-btn.first-run-pulse::after {
+    animation: none;
+    opacity: .7;
   }
 }
