@@ -128,3 +128,21 @@ test("double tap logs the outgoing transition from the tapped ayah", () => {
   assert.match(appSource, /logTransition\(transition\.key\)/);
   assert.doesNotMatch(appSource, /const previous = previousVisibleAyah\(key\);[\s\S]*?logTransition\(transitionKey\(route\.page,\s*previous,\s*key\)\)/);
 });
+
+test("home and reader expose help buttons before settings and reader actions", () => {
+  assert.match(appSource, /<div class="top-actions">\s*\$\{renderHelpButton\(\)\}\s*<button class="icon-btn" data-action="settings"/);
+  assert.match(appSource, /<div class="top-actions">\s*\$\{renderHelpButton\(\)\}\s*<button class="icon-btn \$\{pageBookmarked/);
+});
+
+test("help modal contains the four tutorial topics", () => {
+  assert.match(appSource, /const helpSlides = \[/);
+  assert.match(appSource, /title:\s*"Progress colors"/);
+  assert.match(appSource, /title:\s*"Open a page"/);
+  assert.match(appSource, /title:\s*"Track practice"/);
+  assert.match(appSource, /title:\s*"Inspect details"/);
+  assert.match(appSource, /function renderHelpModal\(\)/);
+});
+
+test("opening help marks the first-time guide as seen", () => {
+  assert.match(appSource, /async function openHelp\(\)\s*\{[\s\S]*?helpOpen = true;[\s\S]*?state\.helpSeen = true;[\s\S]*?await saveState\(\);/);
+});

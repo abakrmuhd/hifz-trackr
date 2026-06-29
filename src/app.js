@@ -113,6 +113,8 @@ let pendingTap = null;
 let undoVisible = false;
 let detailTarget = null;
 let settingsOpen = false;
+let helpOpen = false;
+let helpSlideIndex = 0;
 let settingsError = null;
 let hasSeedBackup = false;
 let developerModeTapState = null;
@@ -152,6 +154,7 @@ const icons = {
   back: `<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`,
   previousPage: `<svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>`,
   nextPage: `<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`,
+  help: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.2 2.2 0 0 1 4.3.8c0 1.8-2.1 2-2.1 3.7"/><path d="M12 17h.01"/></svg>`,
   settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M19 14.5a1.8 1.8 0 0 0 .4 2l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7V21a2 2 0 1 1-4 0v-.4a1.8 1.8 0 0 0-1.1-1.7 1.8 1.8 0 0 0-2 .4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.7-1.1H3a2 2 0 1 1 0-4h.4a1.8 1.8 0 0 0 1.7-1.1 1.8 1.8 0 0 0-.4-2l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.8 1.8 0 0 0 2 .4 1.8 1.8 0 0 0 1.1-1.7V3a2 2 0 1 1 4 0v.4a1.8 1.8 0 0 0 1.1 1.7 1.8 1.8 0 0 0 2-.4l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.7 1.1H21a2 2 0 1 1 0 4h-.4a1.8 1.8 0 0 0-1.6 1Z"/></svg>`,
   star: `<svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>`,
   search: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
@@ -292,6 +295,7 @@ function render() {
   document.documentElement.dataset.theme = state.settings.theme;
   app.innerHTML = route.screen === "reading" ? renderReading() : renderHome();
   if (settingsOpen) app.insertAdjacentHTML("beforeend", renderSettings());
+  if (helpOpen) app.insertAdjacentHTML("beforeend", renderHelpModal());
   if (detailTarget) app.insertAdjacentHTML("beforeend", renderDetails());
   bindScreenEvents();
 }
@@ -304,7 +308,10 @@ function renderHome() {
           <h1>Hifz Trackr</h1>
           <p>tap, track, tathbit</p>
         </div>
-        <button class="icon-btn" data-action="settings" data-dev-mode-trigger aria-label="Settings">${icons.settings}</button>
+        <div class="top-actions">
+          ${renderHelpButton()}
+          <button class="icon-btn" data-action="settings" data-dev-mode-trigger aria-label="Settings">${icons.settings}</button>
+        </div>
       </header>
       <label class="search-box">
         ${icons.search}
@@ -473,6 +480,7 @@ function renderReading() {
         <button class="icon-btn" data-action="home" aria-label="Back">${icons.back}</button>
         <div class="reading-meta">${review ? `Review · ${review.index + 1} of ${review.queue.length}` : `Page ${route.page} · ${metadata.pages[String(route.page)]?.label || ""}`}</div>
         <div class="top-actions">
+          ${renderHelpButton()}
           <button class="icon-btn ${pageBookmarked ? "active" : ""}" data-action="toggle-page-bookmark" aria-label="Toggle page bookmark">${icons.bookmark}</button>
           <button class="icon-btn" data-action="settings" data-dev-mode-trigger aria-label="Settings">${icons.settings}</button>
         </div>
@@ -492,6 +500,78 @@ function renderReading() {
       ${review ? renderReviewBar() : ""}
     </main>
   `;
+}
+
+const helpSlides = [
+  {
+    title: "Progress colors",
+    eyebrow: "Color logic",
+    body: "Grey means not started. The more you repeat, the greener the ayah marker becomes. Page and juz cells stay honest by following the weakest ayah or transition inside them.",
+    visual: "colors"
+  },
+  {
+    title: "Open a page",
+    eyebrow: "Navigation",
+    body: "Use Progress to pick a juz and page, Surahs to jump by surah, Bookmarks to return to saved places, or search for a page, surah, or juz.",
+    visual: "navigation"
+  },
+  {
+    title: "Track practice",
+    eyebrow: "Tap rhythm",
+    body: "Tap an ayah number once to add a repetition. Double tap the same ayah to count the transition from that ayah into the next one.",
+    visual: "tap"
+  },
+  {
+    title: "Inspect details",
+    eyebrow: "Long press",
+    body: "Long press an ayah marker to open its detail view, where you can inspect counts, decrement mistakes, reset an item, or bookmark the ayah.",
+    visual: "details"
+  }
+];
+
+function renderHelpButton() {
+  const pulse = state.helpSeen ? "" : " first-run-pulse";
+  return `<button class="icon-btn help-btn${pulse}" data-action="open-help" aria-label="Open help tutorial">${icons.help}</button>`;
+}
+
+function renderHelpModal() {
+  const slide = helpSlides[helpSlideIndex] || helpSlides[0];
+  return `
+    <div class="modal-backdrop" data-action="close-help">
+      <section class="modal help-modal" role="dialog" aria-modal="true" aria-label="Help tutorial">
+        <header class="modal-head">
+          <strong>How Hifz Trackr works</strong>
+          <button class="icon-btn small" data-action="close-help" aria-label="Close">${icons.close}</button>
+        </header>
+        <div class="help-slide">
+          <div class="help-visual ${slide.visual}" aria-hidden="true">${renderHelpVisual(slide.visual)}</div>
+          <p class="section-caption">${slide.eyebrow}</p>
+          <h2>${slide.title}</h2>
+          <p>${slide.body}</p>
+        </div>
+        <div class="help-progress" aria-label="Help slide ${helpSlideIndex + 1} of ${helpSlides.length}">
+          ${helpSlides.map((_, index) => `<span class="${index === helpSlideIndex ? "active" : ""}"></span>`).join("")}
+        </div>
+        <div class="help-actions">
+          <button class="secondary-btn" data-action="previous-help" ${helpSlideIndex === 0 ? "disabled" : ""}>Previous</button>
+          <button class="primary-btn" data-action="${helpSlideIndex === helpSlides.length - 1 ? "close-help" : "next-help"}">${helpSlideIndex === helpSlides.length - 1 ? "Done" : "Next"}</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderHelpVisual(type) {
+  if (type === "colors") {
+    return `<div class="help-color-row"><span class="empty"></span><span class="weak"></span><span class="building"></span><span class="strong"></span><span class="mastered"></span></div>`;
+  }
+  if (type === "navigation") {
+    return `<div class="help-nav-grid"><span>Progress</span><span>Surahs</span><span>Bookmarks</span></div>`;
+  }
+  if (type === "tap") {
+    return `<div class="help-tap-demo"><span>1 tap</span><strong>١٢</strong><span>2 taps</span></div>`;
+  }
+  return `<div class="help-detail-demo"><strong>Ayah detail</strong><span>Count · Reset · Bookmark</span></div>`;
 }
 
 function renderPageSlot(pageData, pageNumber, slotName, inert = false, activeTarget = null) {
@@ -807,6 +887,23 @@ function renderThresholdSettings(title, profileKey, profile) {
 
 function bindGlobalEvents() {
   window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      if (helpOpen) {
+        helpOpen = false;
+        render();
+        return;
+      }
+      if (settingsOpen) {
+        settingsOpen = false;
+        render();
+        return;
+      }
+      if (detailTarget) {
+        detailTarget = null;
+        render();
+        return;
+      }
+    }
     if (route.screen !== "reading") return;
     if (event.key === "ArrowLeft") moveTrack("next");
     if (event.key === "ArrowRight") moveTrack("previous");
@@ -1010,6 +1107,10 @@ async function handleAction(event, el) {
   event.stopPropagation();
   if (action === "settings") settingsOpen = true;
   if (action === "close-settings") settingsOpen = false;
+  if (action === "open-help") { await openHelp(); return; }
+  if (action === "close-help") helpOpen = false;
+  if (action === "next-help") helpSlideIndex = Math.min(helpSlides.length - 1, helpSlideIndex + 1);
+  if (action === "previous-help") helpSlideIndex = Math.max(0, helpSlideIndex - 1);
   if (action === "close-modal") detailTarget = null;
   if (action === "home") { await goHome(); return; }
   if (action === "previous-page") moveTrack("previous");
@@ -1030,6 +1131,16 @@ async function handleAction(event, el) {
   if (action === "restore-test-data") restoreSeedBackup();
   if (action === "reset-all") resetAll();
   if (!["previous-page", "next-page", "decrement-repetition-detail", "decrement-transition-detail"].includes(action)) render();
+}
+
+async function openHelp() {
+  helpOpen = true;
+  helpSlideIndex = 0;
+  if (!state.helpSeen) {
+    state.helpSeen = true;
+    await saveState();
+  }
+  render();
 }
 
 async function handleDeveloperModeTrigger() {
