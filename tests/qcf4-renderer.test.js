@@ -79,6 +79,16 @@ test("renderQcf4Page omits interactive ayah attrs for inert pages", () => {
   assert.doesNotMatch(html, /data-ayah="1:1"/);
 });
 
+test("renderQcf4Page can mark a full ayah group as bookmarked", () => {
+  const html = renderQcf4Page(page, {
+    inert: false,
+    buildAyahAttrs: () => "",
+    buildGroupClass: (key) => key === "1:1" ? "ayah-group bookmarked-ayah" : "ayah-group"
+  });
+
+  assert.match(html, /class="ayah-group bookmarked-ayah"[\s\S]*<span class="word"/);
+});
+
 test("renderQcf4Page can attach interactive attrs to ayah markers", () => {
   const html = renderQcf4Page(page, {
     inert: false,
@@ -92,7 +102,7 @@ test("renderQcf4Page can attach interactive attrs to ayah markers", () => {
   assert.match(html, /class="ayah-marker ayah-mark weak"/);
   assert.match(html, /data-ayah="1:1"/);
   assert.match(html, /role="button"/);
-  assert.match(html, /<span class="ayah-marker ayah-mark weak"[\s\S]*><span class="ayah-mark-glyph">c<\/span><\/span>/);
+  assert.match(html, /<span class="ayah-marker ayah-mark weak"[\s\S]*><span class="ayah-mark-glyph"><span class="ayah-mark-glyph-base">c<\/span><span class="ayah-mark-glyph-shine" aria-hidden="true">c<\/span><\/span><\/span>/);
   assert.match(html, /style="font-family: &#039;QCF2001&#039;; --count-color: #abda1a"/);
   assert.doesNotMatch(html, /style="[^"]*"\s+style="/);
 });
@@ -111,14 +121,21 @@ test("app keeps ayah marker interactions on QCF4 marker elements", () => {
   assert.match(appSource, /buildQcf4AyahMarkerAttrs/);
 });
 
+test("app marks bookmarked QCF4 ayah groups for full-text highlighting", () => {
+  const appSource = fs.readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
+  assert.match(appSource, /buildQcf4AyahGroupClass/);
+  assert.match(appSource, /state\.ayahBookmarks\.some\(\(item\)\s*=>\s*item\.key\s*===\s*key\)/);
+});
+
 test("styles define Muhaffidh-like QCF4 page metrics", () => {
   const styles = fs.readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.match(styles, /@font-face[\s\S]*font-family:\s*["']?QCF2000/);
   assert.match(styles, /mushaf-page\s*\{[\s\S]*width:\s*100%/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*font-size:\s*min\(29px,\s*5\.55cqw\)/);
-  assert.match(styles, /\.ayah-chars\s*\{[\s\S]*line-height:\s*min\(48\.4px,\s*9\.262cqw\)/);
+  assert.match(styles, /\.ayah-chars\s*\{[\s\S]*--qcf-line-height:\s*min\(48\.4px,\s*9\.262cqw\)/);
+  assert.match(styles, /\.ayah-chars\s*\{[\s\S]*line-height:\s*var\(--qcf-line-height\)/);
   assert.match(styles, /--mushaf-page-content-height:\s*min\(726px,\s*138\.93vw\)/);
-  assert.match(styles, /\.ayah-chars\s+\.line\s*\{[\s\S]*height:\s*min\(48\.4px,\s*9\.262cqw\)/);
+  assert.match(styles, /\.ayah-chars\s+\.line\s*\{[\s\S]*height:\s*var\(--qcf-line-height\)/);
   assert.match(styles, /\.qcf4-slot\s*\{[\s\S]*overflow:\s*visible/);
   assert.match(styles, /\.page-shell\s*\{[\s\S]*cursor:\s*grab/);
   assert.match(styles, /\.page-slot\.current\s+\.ayah-marker\[data-ayah\][\s\S]*cursor:\s*pointer/);
@@ -127,6 +144,10 @@ test("styles define Muhaffidh-like QCF4 page metrics", () => {
   assert.match(surahTitleLineRule, /border:\s*1px\s+solid\s+var\(--mastered\)/);
   assert.match(surahTitleLineRule, /border-radius:\s*12px/);
   assert.match(surahTitleLineRule, /color:\s*var\(--mastered\)/);
+  const bookmarkedAyahRule = styles.match(/\.ayah-chars\s+\.ayah-group\.bookmarked-ayah\s*\{[^}]*\}/)?.[0] || "";
+  assert.match(bookmarkedAyahRule, /background:\s*linear-gradient\(\s*color-mix\(in srgb,\s*var\(--mastered\) 18%,\s*transparent\),\s*color-mix\(in srgb,\s*var\(--mastered\) 18%,\s*transparent\)\s*\)\s*center\s*\/\s*100%\s*var\(--qcf-line-height\)\s*no-repeat/);
+  assert.match(bookmarkedAyahRule, /box-decoration-break:\s*clone/);
+  assert.doesNotMatch(bookmarkedAyahRule, /box-shadow/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*letter-spacing:\s*-2\.1px/);
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*white-space:\s*nowrap/);
   assert.match(styles, /\.ayah-chars\s+\.space\s*\{[\s\S]*font-size:\s*2px/);

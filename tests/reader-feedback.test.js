@@ -138,14 +138,15 @@ test("transition increment triggers a center-out shine on the source ayah", () =
 
 test("fully mastered ayah markers get a looped shine class and reduced-motion fallback", () => {
   assert.match(appSource, /ringState\.isFullyMastered \? "fully-mastered" : ""/);
-  assert.match(appSource, /<span class="ayah-mark-glyph">\$\{match\[2\]\}<\/span>/);
+  assert.match(appSource, /class="ayah-mark-glyph-base">\$\{value\}<\/span><span class="ayah-mark-glyph-shine" aria-hidden="true">\$\{value\}<\/span>/);
   assert.match(styles, /\.ayah-mark-glyph\s*\{[\s\S]*margin-inline:\s*-\.12em;[\s\S]*padding-inline:\s*\.12em/);
-  assert.match(styles, /\.ayah-mark\.fully-mastered\s+\.ayah-mark-glyph\s*\{[\s\S]*background-clip:\s*text/);
-  assert.match(styles, /\.ayah-mark\.fully-mastered\s+\.ayah-mark-glyph\s*\{[\s\S]*linear-gradient\(110deg,\s*var\(--mastered\)/);
-  assert.match(styles, /\.ayah-mark\.fully-mastered\s+\.ayah-mark-glyph\s*\{[\s\S]*animation:\s*ayah-fully-mastered-glyph-shine 2\.6s ease-in-out infinite/);
+  assert.match(styles, /\.ayah-mark\.fully-mastered\s+\.ayah-mark-glyph-base\s*\{[\s\S]*color:\s*var\(--mastered\)/);
+  assert.match(styles, /\.ayah-mark\.fully-mastered\s+\.ayah-mark-glyph-shine\s*\{[\s\S]*background-clip:\s*text/);
+  assert.match(styles, /\.ayah-mark\.fully-mastered\s+\.ayah-mark-glyph-shine\s*\{[\s\S]*linear-gradient\(110deg,\s*transparent/);
+  assert.match(styles, /\.ayah-mark\.fully-mastered\s+\.ayah-mark-glyph-shine\s*\{[\s\S]*animation:\s*ayah-fully-mastered-glyph-shine 2\.6s ease-in-out infinite/);
   assert.doesNotMatch(styles, /\.ayah-mark\.fully-mastered\s*\{[\s\S]*box-shadow:\s*inset 0 0 0 999px/);
   assert.match(styles, /@keyframes ayah-fully-mastered-glyph-shine[\s\S]*background-position:\s*-90% 0/);
-  assert.match(styles, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.ayah-mark\.fully-mastered\s+\.ayah-mark-glyph\s*\{[\s\S]*animation:\s*none/);
+  assert.match(styles, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.ayah-mark\.fully-mastered\s+\.ayah-mark-glyph-shine\s*\{[\s\S]*animation:\s*none/);
 });
 
 test("double tap logs the outgoing transition from the tapped ayah", () => {

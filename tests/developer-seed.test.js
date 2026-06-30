@@ -6,6 +6,7 @@ import { buildDeveloperSeedState } from "../src/data/developer-seed.js";
 import { getJuzForPage } from "../src/data/juz.js";
 
 const appSource = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
+const stylesSource = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
 const baseState = {
   ayahProgress: {},
@@ -107,4 +108,46 @@ test("settings exposes a developer-only seed action and handles it", () => {
   assert.match(appSource, /if \(action === "restore-test-data"\) restoreSeedBackup\(\);/);
   assert.match(appSource, /function seedTestData\(\)/);
   assert.match(appSource, /function restoreSeedBackup\(\)/);
+});
+
+test("reading page exposes a bulk-fill action button and modal wiring", () => {
+  assert.match(appSource, /class="\$\{bulkFillButtonClasses\}" data-action="open-bulk-fill"/);
+  assert.match(appSource, /function openBulkFill\(\)/);
+  assert.match(appSource, /function buildBulkFillDefaults\(/);
+  assert.match(appSource, /function getBulkFillVerseMax\(/);
+  assert.match(appSource, /function clampBulkFillAyah\(/);
+  assert.match(appSource, /data-bulk-fill-modal/);
+  assert.match(appSource, /function renderBulkFillWheel\(/);
+  assert.match(appSource, /function renderBulkFillPickerMenu\(/);
+  assert.match(appSource, /function stepBulkFillField\(/);
+  assert.match(appSource, /function bindBulkFillWheel\(/);
+  assert.match(appSource, /function toggleBulkFillPicker\(/);
+  assert.match(appSource, /function selectBulkFillPicker\(/);
+  assert.match(appSource, /data-picker="surahNumber"/);
+  assert.match(appSource, /data-picker="mode"/);
+  assert.match(appSource, /key:\s*"startAyah"/);
+  assert.match(appSource, /key:\s*"endAyah"/);
+  assert.match(appSource, /key:\s*"repetitionCount"/);
+  assert.match(appSource, /key:\s*"transitionCount"/);
+  assert.match(appSource, /data-bulk-fill-wheel="\$\{key\}"/);
+  assert.match(appSource, /data-action="toggle-bulk-fill-picker"/);
+  assert.match(appSource, /data-action="select-bulk-fill-picker"/);
+  assert.match(appSource, /if \(key === "startAyah" \|\| key === "endAyah"\) \{/);
+  assert.match(appSource, /clampBulkFillAyah\(value, bulkFillForm\.surahNumber\)/);
+  assert.match(appSource, /if \(action === "open-bulk-fill"\) openBulkFill\(\);/);
+  assert.match(appSource, /if \(action === "toggle-bulk-fill-picker"\) toggleBulkFillPicker\(el\.dataset\.picker\);/);
+  assert.match(appSource, /if \(action === "select-bulk-fill-picker"\) selectBulkFillPicker\(el\.dataset\.picker, el\.dataset\.value\);/);
+  assert.match(appSource, /if \(action === "close-bulk-fill"\) closeBulkFill\(\);/);
+  assert.match(appSource, /if \(action === "submit-bulk-fill"\) \{ await submitBulkFill\(\); return; \}/);
+});
+
+test("bulk-fill button styling keeps the action fixed off the page navigation buttons", () => {
+  assert.match(stylesSource, /\.reader-bulk-fill-btn/);
+  assert.match(stylesSource, /position:\s*fixed/);
+  assert.match(stylesSource, /inset-inline-end:/);
+  assert.match(stylesSource, /bottom:\s*82px/);
+  assert.match(stylesSource, /\.reader-bulk-fill-btn\.with-review/);
+  assert.match(stylesSource, /\.bulk-fill-wheel/);
+  assert.match(stylesSource, /\.bulk-fill-picker-menu/);
+  assert.match(stylesSource, /\.bulk-fill-picker-option\.selected/);
 });

@@ -1,6 +1,7 @@
+import { isLocalhostHostname } from "./data/runtime-environment.js";
+
 const app = document.querySelector("#app");
-const STARTUP_ASSET_VERSION = "2026-06-30-juz-page-zoom";
-const LOCALHOST_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1"]);
+const STARTUP_ASSET_VERSION = "2026-06-30-glyph-shine-overlay";
 
 function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]);
@@ -23,7 +24,7 @@ globalThis.addEventListener("error", (event) => {
 });
 
 async function clearLocalDevCaches() {
-  if (!LOCALHOST_HOSTNAMES.has(globalThis.location?.hostname || "")) return;
+  if (!isLocalhostHostname(globalThis.location?.hostname || "")) return;
   if ("serviceWorker" in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations().catch(() => []);
     await Promise.all(registrations.map((registration) => registration.unregister().catch(() => false)));

@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bulk Fill Number Picker Options</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #17171f;
+      --panel: #242431;
+      --panel-2: #2b2b39;
+      --line: #3a3a49;
+      --line-soft: rgba(255, 255, 255, .08);
+      --text: #f6f5ef;
+      --muted: #b0b3be;
+      --quiet: #888d99;
+      --accent: #abda1a;
+      --accent-ink: #213400;
+      --shadow: 0 24px 60px rgba(0, 0, 0, .28);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(171, 218, 26, .08), transparent 32%),
+        linear-gradient(180deg, #15151c, #1c1c25 65%, #16161d);
+      color: var(--text);
+      font-family: "Source Sans 3", system-ui, sans-serif;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 3vw, 2.8rem);
+      line-height: 1;
+      letter-spacing: -.03em;
+    }
+
+    .intro {
+      max-width: 760px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.55;
+    }
+
+    .tip {
+      margin-top: 12px;
+      color: var(--accent);
+      font-size: .9rem;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
+      margin-top: 28px;
+      align-items: start;
+    }
+
+    .option {
+      display: grid;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, .03), transparent), var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .phone {
+      position: relative;
+      min-height: 760px;
+      padding: 18px 12px 18px;
+      background: #1b1b24;
+    }
+
+    .page-frame {
+      min-height: 100%;
+      border: 1px solid #373747;
+      border-radius: 20px;
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, .01), transparent), #222230;
+    }
+
+    .page-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .mushaf-ghost {
+      height: 220px;
+      border: 1px solid #3f4a1a;
+      border-radius: 16px;
+      background:
+        linear-gradient(180deg, rgba(171, 218, 26, .06), transparent 30%),
+        #1f1f2a;
+      margin-bottom: 14px;
+    }
+
+    .modal {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #2a2a37;
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-head h2 {
+      font-size: 1.55rem;
+      line-height: 1.05;
+    }
+
+    .close {
+      color: var(--muted);
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: .95rem;
+      line-height: 1.45;
+    }
+
+    .row,
+    .row-two {
+      display: grid;
+      gap: 10px;
+    }
+
+    .row-two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel-2);
+    }
+
+    .field.tight {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .label strong,
+    .label span {
+      display: block;
+    }
+
+    .label strong {
+      font-size: 1rem;
+      line-height: 1.05;
+    }
+
+    .label span {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.3;
+    }
+
+    .select-pill,
+    .mode-box {
+      display: inline-grid;
+      place-items: center;
+      min-width: 98px;
+      min-height: 40px;
+      padding: 0 12px;
+      border: 2px solid rgba(255, 255, 255, .82);
+      border-radius: 12px;
+      background: #343445;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .mode-box {
+      min-width: 126px;
+    }
+
+    .native-stack {
+      display: grid;
+      gap: 8px;
+      justify-items: end;
+    }
+
+    .native-wheel,
+    .wheel-inline {
+      position: relative;
+      display: grid;
+      align-items: stretch;
+      overflow: hidden;
+      border: 1px solid #4b4b5f;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, .03), transparent), #313141;
+      text-align: center;
+      user-select: none;
+      touch-action: none;
+      cursor: ns-resize;
+      transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+
+    .native-wheel:focus-visible,
+    .wheel-inline:focus-visible,
+    .native-wheel.is-active,
+    .wheel-inline.is-active {
+      outline: 0;
+      border-color: rgba(171, 218, 26, .85);
+      box-shadow: 0 0 0 2px rgba(171, 218, 26, .18);
+    }
+
+    .native-wheel {
+      width: 78px;
+      grid-template-rows: 24px 42px 24px;
+    }
+
+    .wheel-inline {
+      width: 86px;
+      min-height: 74px;
+      grid-template-rows: 22px 30px 22px;
+      padding: 0;
+      border-color: #49495d;
+      background: #2f2f3f;
+    }
+
+    .wheel-item {
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      transition: color .18s ease, opacity .18s ease, background .18s ease;
+    }
+
+    .wheel-item.ghost {
+      color: var(--quiet);
+      opacity: .95;
+    }
+
+    .native-wheel .wheel-item.ghost {
+      font-size: .9rem;
+    }
+
+    .wheel-inline .wheel-item.ghost {
+      font-size: .82rem;
+      line-height: 1.15;
+    }
+
+    .wheel-item.active {
+      border-block: 1px solid rgba(255, 255, 255, .18);
+      background: rgba(255, 255, 255, .05);
+      color: var(--text);
+      font-weight: 900;
+    }
+
+    .native-wheel .wheel-item.active {
+      font-size: 1.2rem;
+    }
+
+    .wheel-inline .wheel-item.active {
+      background: rgba(171, 218, 26, .12);
+      font-size: 1.12rem;
+      line-height: 1;
+    }
+
+    .wheel-hit {
+      position: absolute;
+      inset-inline: 0;
+      height: 34%;
+      z-index: 2;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .wheel-hit.top {
+      top: 0;
+    }
+
+    .wheel-hit.bottom {
+      bottom: 0;
+    }
+
+    .wheel-inline .wheel-hit {
+      height: 32%;
+    }
+
+    .stepper {
+      display: inline-grid;
+      grid-template-columns: 34px 54px 34px;
+      align-items: center;
+      min-height: 40px;
+      border: 1px solid #444458;
+      border-radius: 12px;
+      background: #303040;
+      overflow: hidden;
+    }
+
+    .stepper b,
+    .stepper span {
+      display: grid;
+      place-items: center;
+      height: 100%;
+      font-size: 1rem;
+      font-weight: 900;
+    }
+
+    .stepper b {
+      color: var(--accent);
+      background: rgba(171, 218, 26, .08);
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    .btn {
+      min-height: 44px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 900;
+      border: 0;
+    }
+
+    .btn.secondary {
+      background: #353545;
+      color: var(--text);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: var(--accent-ink);
+    }
+
+    .caption {
+      display: grid;
+      gap: 6px;
+      padding: 0 2px;
+    }
+
+    .caption h3 {
+      font-size: 1.1rem;
+    }
+
+    .caption p {
+      color: var(--muted);
+      font-size: .94rem;
+      line-height: 1.45;
+    }
+
+    .pros {
+      display: grid;
+      gap: 6px;
+      margin-top: 6px;
+      color: var(--quiet);
+      font-size: .84rem;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(171, 218, 26, .12);
+      color: var(--accent);
+      font-size: .76rem;
+      font-weight: 900;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+
+    @media (max-width: 1040px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .phone {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Bulk Fill Number Picker Options</h1>
+    <p class="intro">
+      Three directions for the four numeric fields in the bulk-fill modal: start ayah, end ayah,
+      repetition count, and transition count. This keeps the rest of the modal stable so the only
+      thing changing is the number-entry pattern.
+    </p>
+    <p class="tip">Try Option A and Option C: scroll the wheels, tap the top or bottom, or drag vertically.</p>
+
+    <section class="grid">
+      <article class="option">
+        <div class="card">
+          <div class="phone">
+            <div class="page-frame">
+              <div class="page-bar">
+                <span>Page 604 · 112:1</span>
+                <span>x</span>
+              </div>
+              <div class="mushaf-ghost"></div>
+              <div class="modal">
+                <div class="modal-head">
+                  <h2>Bulk Fill Counts</h2>
+                  <span class="close">x</span>
+                </div>
+                <p class="note">Tap a number field and use the phone's native number wheel.</p>
+                <div class="row">
+                  <div class="field">
+                    <div class="label">
+                      <strong>Surah</strong>
+                      <span>Al-Falaq</span>
+                    </div>
+                    <div class="select-pill">113. Al-Falaq</div>
+                  </div>
+                </div>
+                <div class="row-two">
+                  <div class="field tight">
+                    <div class="label">
+                      <strong>Start ayah</strong>
+                      <span>Current page default</span>
+                    </div>
+                    <div class="native-stack">
+                      <div class="native-wheel" data-wheel data-min="1" data-max="7" data-value="1" tabindex="0" aria-label="Option A Start ayah">
+                        <button class="wheel-hit top" type="button" aria-hidden="true"></button>
+                        <div class="wheel-item ghost" data-wheel-previous>7</div>
+                        <div class="wheel-item active" data-wheel-current>1</div>
+                        <div class="wheel-item ghost" data-wheel-next>2</div>
+                        <button class="wheel-hit bottom" type="button" aria-hidden="true"></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field tight">
+                    <div class="label">
+                      <strong>End ayah</strong>
+                      <span>Current page default</span>
+                    </div>
+                    <div class="native-stack">
+                      <div class="native-wheel" data-wheel data-min="1" data-max="7" data-value="5" tabindex="0" aria-label="Option A End ayah">
+                        <button class="wheel-hit top" type="button" aria-hidden="true"></button>
+                        <div class="wheel-item ghost" data-wheel-previous>4</div>
+                        <div class="wheel-item active" data-wheel-current>5</div>
+                        <div class="wheel-item ghost" data-wheel-next>6</div>
+                        <button class="wheel-hit bottom" type="button" aria-hidden="true"></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <div class="label">
+                      <strong>Repetition count</strong>
+                      <span>Applied to each ayah in range</span>
+                    </div>
+                    <div class="native-wheel" data-wheel data-min="0" data-max="40" data-value="12" tabindex="0" aria-label="Option A Repetition count">
+                      <button class="wheel-hit top" type="button" aria-hidden="true"></button>
+                      <div class="wheel-item ghost" data-wheel-previous>11</div>
+                      <div class="wheel-item active" data-wheel-current>12</div>
+                      <div class="wheel-item ghost" data-wheel-next>13</div>
+                      <button class="wheel-hit bottom" type="button" aria-hidden="true"></button>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="label">
+                      <strong>Transition count</strong>
+                      <span>Only for consecutive in-range ayahs</span>
+                    </div>
+                    <div class="native-wheel" data-wheel data-min="0" data-max="40" data-value="6" tabindex="0" aria-label="Option A Transition count">
+                      <button class="wheel-hit top" type="button" aria-hidden="true"></button>
+                      <div class="wheel-item ghost" data-wheel-previous>5</div>
+                      <div class="wheel-item active" data-wheel-current>6</div>
+                      <div class="wheel-item ghost" data-wheel-next>7</div>
+                      <button class="wheel-hit bottom" type="button" aria-hidden="true"></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label">
+                    <strong>Mode</strong>
+                    <span>Replace current counts or add on top</span>
+                  </div>
+                  <div class="mode-box">Replace</div>
+                </div>
+                <div class="actions">
+                  <button class="btn secondary">Cancel</button>
+                  <button class="btn primary">Apply</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          <span class="tag">Option A</span>
+          <h3>Native Wheel Picker</h3>
+          <p>Feels most like mobile iOS/Android number selection if the browser honors native wheel-style controls.</p>
+          <div class="pros">
+            <span>Low visual noise inside the modal.</span>
+            <span>Depends on platform/browser behavior, so it may not look consistent everywhere.</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="option">
+        <div class="card">
+          <div class="phone">
+            <div class="page-frame">
+              <div class="page-bar">
+                <span>Page 604 · 112:1</span>
+                <span>x</span>
+              </div>
+              <div class="mushaf-ghost"></div>
+              <div class="modal">
+                <div class="modal-head">
+                  <h2>Bulk Fill Counts</h2>
+                  <span class="close">x</span>
+                </div>
+                <p class="note">Use compact minus and plus controls for every numeric field.</p>
+                <div class="row">
+                  <div class="field">
+                    <div class="label">
+                      <strong>Surah</strong>
+                      <span>Al-Falaq</span>
+                    </div>
+                    <div class="select-pill">113. Al-Falaq</div>
+                  </div>
+                </div>
+                <div class="row-two">
+                  <div class="field tight">
+                    <div class="label">
+                      <strong>Start ayah</strong>
+                      <span>Current page default</span>
+                    </div>
+                    <div class="stepper">
+                      <b>-</b>
+                      <span>1</span>
+                      <b>+</b>
+                    </div>
+                  </div>
+                  <div class="field tight">
+                    <div class="label">
+                      <strong>End ayah</strong>
+                      <span>Current page default</span>
+                    </div>
+                    <div class="stepper">
+                      <b>-</b>
+                      <span>5</span>
+                      <b>+</b>
+                    </div>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label">
+                    <strong>Repetition count</strong>
+                    <span>Applied to each ayah in range</span>
+                  </div>
+                  <div class="stepper">
+                    <b>-</b>
+                    <span>12</span>
+                    <b>+</b>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label">
+                    <strong>Transition count</strong>
+                    <span>Only for consecutive in-range ayahs</span>
+                  </div>
+                  <div class="stepper">
+                    <b>-</b>
+                    <span>6</span>
+                    <b>+</b>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label">
+                    <strong>Mode</strong>
+                    <span>Replace current counts or add on top</span>
+                  </div>
+                  <div class="mode-box">Replace</div>
+                </div>
+                <div class="actions">
+                  <button class="btn secondary">Cancel</button>
+                  <button class="btn primary">Apply</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          <span class="tag">Option B</span>
+          <h3>Inline Stepper</h3>
+          <p>Most explicit and easiest to implement consistently, but it adds more tap targets and visual density.</p>
+          <div class="pros">
+            <span>Predictable on every device.</span>
+            <span>Slower when jumping to larger numbers like 25 or 40.</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="option">
+        <div class="card">
+          <div class="phone">
+            <div class="page-frame">
+              <div class="page-bar">
+                <span>Page 604 · 112:1</span>
+                <span>x</span>
+              </div>
+              <div class="mushaf-ghost"></div>
+              <div class="modal">
+                <div class="modal-head">
+                  <h2>Bulk Fill Counts</h2>
+                  <span class="close">x</span>
+                </div>
+                <p class="note">Use an always-visible mini wheel right inside the modal for each numeric value.</p>
+                <div class="row">
+                  <div class="field">
+                    <div class="label">
+                      <strong>Surah</strong>
+                      <span>Al-Falaq</span>
+                    </div>
+                    <div class="select-pill">113. Al-Falaq</div>
+                  </div>
+                </div>
+                <div class="row-two">
+                  <div class="field tight">
+                    <div class="label">
+                      <strong>Start ayah</strong>
+                      <span>Current page default</span>
+                    </div>
+                    <div class="wheel-inline" data-wheel data-min="1" data-max="7" data-value="1" tabindex="0" aria-label="Option C Start ayah">
+                      <button class="wheel-hit top" type="button" aria-hidden="true"></button>
+                      <div class="wheel-item ghost" data-wheel-previous>7</div>
+                      <div class="wheel-item active" data-wheel-current>1</div>
+                      <div class="wheel-item ghost" data-wheel-next>2</div>
+                      <button class="wheel-hit bottom" type="button" aria-hidden="true"></button>
+                    </div>
+                  </div>
+                  <div class="field tight">
+                    <div class="label">
+                      <strong>End ayah</strong>
+                      <span>Current page default</span>
+                    </div>
+                    <div class="wheel-inline" data-wheel data-min="1" data-max="7" data-value="5" tabindex="0" aria-label="Option C End ayah">
+                      <button class="wheel-hit top" type="button" aria-hidden="true"></button>
+                      <div class="wheel-item ghost" data-wheel-previous>4</div>
+                      <div class="wheel-item active" data-wheel-current>5</div>
+                      <div class="wheel-item ghost" data-wheel-next>6</div>
+                      <button class="wheel-hit bottom" type="button" aria-hidden="true"></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label">
+                    <strong>Repetition count</strong>
+                    <span>Applied to each ayah in range</span>
+                  </div>
+                  <div class="wheel-inline" data-wheel data-min="0" data-max="40" data-value="12" tabindex="0" aria-label="Option C Repetition count">
+                    <button class="wheel-hit top" type="button" aria-hidden="true"></button>
+                    <div class="wheel-item ghost" data-wheel-previous>11</div>
+                    <div class="wheel-item active" data-wheel-current>12</div>
+                    <div class="wheel-item ghost" data-wheel-next>13</div>
+                    <button class="wheel-hit bottom" type="button" aria-hidden="true"></button>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label">
+                    <strong>Transition count</strong>
+                    <span>Only for consecutive in-range ayahs</span>
+                  </div>
+                  <div class="wheel-inline" data-wheel data-min="0" data-max="40" data-value="6" tabindex="0" aria-label="Option C Transition count">
+                    <button class="wheel-hit top" type="button" aria-hidden="true"></button>
+                    <div class="wheel-item ghost" data-wheel-previous>5</div>
+                    <div class="wheel-item active" data-wheel-current>6</div>
+                    <div class="wheel-item ghost" data-wheel-next>7</div>
+                    <button class="wheel-hit bottom" type="button" aria-hidden="true"></button>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label">
+                    <strong>Mode</strong>
+                    <span>Replace current counts or add on top</span>
+                  </div>
+                  <div class="mode-box">Replace</div>
+                </div>
+                <div class="actions">
+                  <button class="btn secondary">Cancel</button>
+                  <button class="btn primary">Apply</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">
+          <span class="tag">Option C</span>
+          <h3>Embedded Scroll Wheel</h3>
+          <p>Most literal match to “scrolling numbers” and most visually clear, but it’s also the heaviest custom interaction.</p>
+          <div class="pros">
+            <span>Strong visual affordance that the value scrolls.</span>
+            <span>Largest build cost and the most care needed for touch behavior.</span>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    function wrapValue(value, min, max) {
+      if (value < min) return max;
+      if (value > max) return min;
+      return value;
+    }
+
+    function updateWheel(wheel) {
+      const min = Number(wheel.dataset.min);
+      const max = Number(wheel.dataset.max);
+      const value = wrapValue(Number(wheel.dataset.value), min, max);
+      const previous = value === min ? max : value - 1;
+      const next = value === max ? min : value + 1;
+
+      wheel.dataset.value = String(value);
+      wheel.querySelector("[data-wheel-previous]").textContent = String(previous);
+      wheel.querySelector("[data-wheel-current]").textContent = String(value);
+      wheel.querySelector("[data-wheel-next]").textContent = String(next);
+      wheel.setAttribute("aria-valuemin", String(min));
+      wheel.setAttribute("aria-valuemax", String(max));
+      wheel.setAttribute("aria-valuenow", String(value));
+    }
+
+    function stepWheel(wheel, direction) {
+      wheel.dataset.value = String(Number(wheel.dataset.value) + direction);
+      updateWheel(wheel);
+      wheel.classList.add("is-active");
+      window.clearTimeout(wheel._activeTimer);
+      wheel._activeTimer = window.setTimeout(() => {
+        wheel.classList.remove("is-active");
+      }, 220);
+    }
+
+    function bindWheel(wheel) {
+      updateWheel(wheel);
+
+      wheel.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        stepWheel(wheel, event.deltaY > 0 ? 1 : -1);
+      }, { passive: false });
+
+      wheel.querySelector(".wheel-hit.top").addEventListener("click", () => stepWheel(wheel, -1));
+      wheel.querySelector(".wheel-hit.bottom").addEventListener("click", () => stepWheel(wheel, 1));
+
+      wheel.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          stepWheel(wheel, -1);
+        }
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          stepWheel(wheel, 1);
+        }
+      });
+
+      let startY = null;
+
+      wheel.addEventListener("pointerdown", (event) => {
+        startY = event.clientY;
+        wheel.setPointerCapture(event.pointerId);
+        wheel.classList.add("is-active");
+      });
+
+      wheel.addEventListener("pointermove", (event) => {
+        if (startY == null) return;
+        const delta = event.clientY - startY;
+        if (Math.abs(delta) < 22) return;
+        stepWheel(wheel, delta > 0 ? 1 : -1);
+        startY = event.clientY;
+      });
+
+      const finishPointer = (event) => {
+        if (startY == null) return;
+        startY = null;
+        if (wheel.hasPointerCapture(event.pointerId)) {
+          wheel.releasePointerCapture(event.pointerId);
+        }
+      };
+
+      wheel.addEventListener("pointerup", finishPointer);
+      wheel.addEventListener("pointercancel", finishPointer);
+    }
+
+    document.querySelectorAll("[data-wheel]").forEach(bindWheel);
+  </script>
+</body>
+</html>

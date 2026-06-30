@@ -1,12 +1,12 @@
-export const CACHE_VERSION = "hifz-trackr-v60-juz-page-zoom";
+export const CACHE_VERSION = "hifz-trackr-v62-glyph-shine-overlay";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-06-30-juz-page-zoom",
-  "/src/styles.css?v=2026-06-30-juz-page-zoom"
+  "/src/app.js?v=2026-06-30-glyph-shine-overlay",
+  "/src/styles.css?v=2026-06-30-glyph-shine-overlay"
 ];
 
 export const DATA_ASSETS = [

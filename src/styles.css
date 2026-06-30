@@ -973,8 +973,9 @@ mushaf-page-inner {
   width: 100%;
   direction: rtl;
   unicode-bidi: bidi-override;
+  --qcf-line-height: min(48.4px, 9.262cqw);
   font-size: min(29px, 5.55cqw);
-  line-height: min(48.4px, 9.262cqw);
+  line-height: var(--qcf-line-height);
   letter-spacing: -2.1px;
   white-space: nowrap;
   text-align-last: justify;
@@ -982,7 +983,7 @@ mushaf-page-inner {
 
 .ayah-chars .line {
   display: block;
-  height: min(48.4px, 9.262cqw);
+  height: var(--qcf-line-height);
   width: 100%;
   unicode-bidi: bidi-override;
 }
@@ -1007,6 +1008,16 @@ mushaf-page-inner {
 
 .ayah-chars .ayah-group {
   unicode-bidi: bidi-override;
+}
+
+.ayah-chars .ayah-group.bookmarked-ayah {
+  border-radius: .22em;
+  background: linear-gradient(
+    color-mix(in srgb, var(--mastered) 18%, transparent),
+    color-mix(in srgb, var(--mastered) 18%, transparent)
+  ) center / 100% var(--qcf-line-height) no-repeat;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .ayah-chars .space {
@@ -1173,17 +1184,33 @@ mushaf-page-inner {
 .ayah-mark-glyph {
   position: relative;
   z-index: 2;
-  display: inline-block;
+  display: inline-grid;
+  place-items: center;
   margin-inline: -.12em;
   padding-inline: .12em;
   color: inherit;
 }
 
-.ayah-mark.fully-mastered .ayah-mark-glyph {
+.ayah-mark-glyph-base,
+.ayah-mark-glyph-shine {
+  grid-area: 1 / 1;
+}
+
+.ayah-mark-glyph-shine {
+  display: none;
+  pointer-events: none;
+}
+
+.ayah-mark.fully-mastered .ayah-mark-glyph-base {
+  color: var(--mastered);
+}
+
+.ayah-mark.fully-mastered .ayah-mark-glyph-shine {
+  display: inline-block;
   color: transparent;
   -webkit-text-fill-color: transparent;
   background-image:
-    linear-gradient(110deg, var(--mastered) 0 36%, #ffffff 46%, var(--mastered) 58% 100%);
+    linear-gradient(110deg, transparent 0 36%, #ffffff 46%, transparent 58% 100%);
   background-size: 260% 100%;
   background-clip: text;
   -webkit-background-clip: text;
@@ -1331,17 +1358,51 @@ mushaf-page-inner {
 
 .floating-undo {
   position: fixed;
-  right: max(22px, calc((100vw - 460px) / 2 + 22px));
-  bottom: 24px;
+  inset-inline-start: max(22px, calc((100vw - 460px) / 2 + 22px));
+  bottom: 82px;
   display: inline-grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border: 0;
-  border-radius: 12px;
-  background: var(--strong);
-  color: #263500;
-  box-shadow: 0 14px 28px rgba(0, 0, 0, .34);
+  border-radius: 999px;
+  background: #abda1a;
+  color: #163200;
+  box-shadow: 0 18px 32px rgba(0, 0, 0, .3);
+  z-index: 6;
+}
+
+.floating-undo svg {
+  width: 1.22rem;
+  height: 1.22rem;
+  stroke-width: 2.45;
+}
+
+.floating-undo.with-review {
+  bottom: 148px;
+}
+
+.reader-bulk-fill-btn {
+  position: fixed;
+  inset-inline-end: max(22px, calc((100vw - 460px) / 2 + 22px));
+  bottom: 82px;
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: #abda1a;
+  color: #163200;
+  font-size: 1.5rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 18px 32px rgba(0, 0, 0, .3);
+  z-index: 6;
+}
+
+.reader-bulk-fill-btn.with-review {
+  bottom: 148px;
 }
 
 .review-bar {
@@ -1413,6 +1474,193 @@ mushaf-page-inner {
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--phone) 96%, transparent);
   backdrop-filter: blur(10px);
+}
+
+.bulk-fill-modal {
+  display: grid;
+  gap: 10px;
+}
+
+.bulk-fill-modal .setting-row {
+  margin-bottom: 0;
+}
+
+.bulk-fill-modal .setting-row input,
+.bulk-fill-modal .setting-row select {
+  width: 92px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: center;
+  font-weight: 900;
+}
+
+.bulk-fill-modal .setting-row select {
+  width: 140px;
+  text-align: left;
+  padding-inline: 10px 28px;
+}
+
+.bulk-fill-picker-row {
+  position: relative;
+  align-items: flex-start;
+}
+
+.bulk-fill-picker-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  width: 140px;
+}
+
+.bulk-fill-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 900;
+}
+
+.bulk-fill-picker-row.open .bulk-fill-picker-trigger {
+  border-color: rgba(171, 218, 26, .82);
+  box-shadow: 0 0 0 2px rgba(171, 218, 26, .16);
+}
+
+.bulk-fill-picker-trigger span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bulk-fill-picker-caret,
+.bulk-fill-picker-check {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.bulk-fill-picker-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline: 0;
+  z-index: 5;
+  display: grid;
+  gap: 6px;
+  max-height: 196px;
+  padding: 8px;
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, #ffffff 28%);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .03), transparent), var(--panel);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, .32);
+}
+
+.bulk-fill-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 800;
+  text-align: left;
+}
+
+.bulk-fill-picker-option.selected {
+  border-color: rgba(171, 218, 26, .82);
+  background: rgba(171, 218, 26, .12);
+}
+
+.bulk-fill-modal .setting-row > .bulk-fill-wheel {
+  flex: 0 0 auto;
+}
+
+.bulk-fill-range-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bulk-fill-wheel {
+  position: relative;
+  display: grid;
+  grid-template-rows: 22px 30px 22px;
+  align-items: stretch;
+  width: 86px;
+  min-height: 74px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, #ffffff 24%);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .03), transparent), var(--surface-2);
+  text-align: center;
+  user-select: none;
+  touch-action: none;
+  cursor: ns-resize;
+}
+
+.bulk-fill-wheel:focus-visible {
+  outline: 0;
+  border-color: rgba(171, 218, 26, .82);
+  box-shadow: 0 0 0 2px rgba(171, 218, 26, .18);
+}
+
+.bulk-fill-wheel-value {
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.bulk-fill-wheel-value.ghost {
+  color: var(--quiet);
+  font-size: .82rem;
+  line-height: 1.15;
+}
+
+.bulk-fill-wheel-value.active {
+  border-block: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(255, 255, 255, .08);
+  color: var(--text);
+  font-size: 1.12rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.bulk-fill-wheel-hit {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 2;
+  height: 32%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.bulk-fill-wheel-hit.top {
+  top: 0;
+}
+
+.bulk-fill-wheel-hit.bottom {
+  bottom: 0;
+}
+
+.settings-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.4;
 }
 
 .detail-modal {
@@ -2373,7 +2621,7 @@ mushaf-page-inner {
     animation: none;
   }
 
-  .ayah-mark.fully-mastered .ayah-mark-glyph {
+  .ayah-mark.fully-mastered .ayah-mark-glyph-shine {
     animation: none;
   }
 }

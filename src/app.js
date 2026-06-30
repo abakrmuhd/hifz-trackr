@@ -19,6 +19,7 @@ import {
   searchNavigationTargets
 } from "./data/navigation-logic.js?v=2026-06-28-home-search";
 import { renderHomeSearchResults } from "./data/home-search-view.js?v=2026-06-28-home-search";
+import { bulkFillAyahRangeCounts } from "./data/bulk-progress.js";
 import { buildDeveloperSeedState } from "./data/developer-seed.js";
 import {
   clearSeedBackup,
@@ -116,6 +117,9 @@ let detailTarget = null;
 let settingsOpen = false;
 let helpOpen = false;
 let helpSlideIndex = 0;
+let bulkFillOpen = false;
+let bulkFillForm = null;
+let bulkFillPicker = null;
 let settingsError = null;
 let hasSeedBackup = false;
 let developerModeTapState = null;
@@ -297,6 +301,7 @@ function render() {
   app.innerHTML = route.screen === "reading" ? renderReading() : renderHome();
   if (settingsOpen) app.insertAdjacentHTML("beforeend", renderSettings());
   if (helpOpen) app.insertAdjacentHTML("beforeend", renderHelpModal());
+  if (bulkFillOpen) app.insertAdjacentHTML("beforeend", renderBulkFillModal());
   if (detailTarget) app.insertAdjacentHTML("beforeend", renderDetails());
   bindScreenEvents();
   animatePageGridOnRender = false;
@@ -417,13 +422,9 @@ function buildSurahVerseCounts(pages) {
   const counts = new Map();
 
   for (const pageData of Object.values(pages || {})) {
-    for (const line of pageData.lines || []) {
-      if (!line.verseRange) continue;
-      const [start, end] = line.verseRange.split("-");
-      const [startSurah, startAyah] = start.split(":").map(Number);
-      const [endSurah, endAyah] = end.split(":").map(Number);
-      updateSurahVerseCount(counts, startSurah, startAyah);
-      updateSurahVerseCount(counts, endSurah, endAyah);
+    for (const key of pageData.ayahKeys || []) {
+      const [surahNumber, ayahNumber] = key.split(":").map(Number);
+      updateSurahVerseCount(counts, surahNumber, ayahNumber);
     }
   }
 
@@ -476,6 +477,14 @@ function renderReading() {
   const pageNumbers = buildTrackPages({ currentPage: route.page, pageCount: PAGE_COUNT });
   const pageBookmarked = state.pageBookmarks.includes(route.page);
   const activeTarget = resolveReaderTarget();
+  const bulkFillButtonClasses = [
+    "reader-bulk-fill-btn",
+    review ? "with-review" : ""
+  ].filter(Boolean).join(" ");
+  const undoButtonClasses = [
+    "floating-undo",
+    review ? "with-review" : ""
+  ].filter(Boolean).join(" ");
   return `
     <main class="app-shell reader-shell">
       <header class="reading-top">
@@ -498,7 +507,8 @@ function renderReading() {
         <button class="reader-bottom-btn next" data-action="next-page" aria-label="Next page" ${pageNumbers.next ? "" : "disabled"}>${icons.nextPage}</button>
         <button class="reader-bottom-btn previous" data-action="previous-page" aria-label="Previous page" ${pageNumbers.previous ? "" : "disabled"}>${icons.previousPage}</button>
       </nav>
-      ${undoVisible ? `<button class="floating-undo" data-action="undo" aria-label="Undo last repetition count">${icons.undo}</button>` : ""}
+      <button class="${bulkFillButtonClasses}" data-action="open-bulk-fill" aria-label="Bulk fill counts">+</button>
+      ${undoVisible ? `<button class="${undoButtonClasses}" data-action="undo" aria-label="Undo last repetition count">${icons.undo}</button>` : ""}
       ${review ? renderReviewBar() : ""}
     </main>
   `;
@@ -654,7 +664,7 @@ function renderPageSlot(pageData, pageNumber, slotName, inert = false, activeTar
           buildAyahMarkerAttrs: (key) => buildQcf4AyahMarkerAttrs(key, { pageNumber }),
           buildAyahMarkerClass: (key) => buildQcf4AyahMarkerClass(key, activeTarget),
           buildAyahMarkerStyle: (key) => buildQcf4AyahMarkerStyle(key),
-          buildGroupClass: () => "ayah-group"
+          buildGroupClass: (key) => buildQcf4AyahGroupClass(key)
         })}
       </div>
     `;
@@ -707,10 +717,11 @@ function renderWord(word, activeTarget, options = {}) {
     ? `--transition-progress: ${ringState.transitionProgressPercent}%; --transition-clip: ${(100 - ringState.transitionProgressPercent) / 2}%; --transition-color: ${ringState.transitionCountColor}; `
     : "";
   const ayahStyle = ` style="${transitionUnderlineStyle}--count-color: ${ringState.repetitionCountColor}; --count-ink: ${ringState.repetitionCountInkColor}"`;
+  const ayahGlyph = renderAyahMarkGlyph(match[2]);
   if (options.inert) {
     return `
       <span class="qword">${escapeHtml(match[1])}</span>
-      <span class="${ayahClass}"${ayahStyle} aria-hidden="true"><span class="ayah-mark-glyph">${match[2]}</span></span>
+      <span class="${ayahClass}"${ayahStyle} aria-hidden="true">${ayahGlyph}</span>
     `;
   }
   const ariaLabel = buildRepetitionAriaLabel({
@@ -720,8 +731,12 @@ function renderWord(word, activeTarget, options = {}) {
   });
   return `
     <span class="qword">${escapeHtml(match[1])}</span>
-    <button class="${ayahClass}"${ayahStyle} data-ayah="${key}" data-page="${pageNumber}" aria-label="${ariaLabel}"><span class="ayah-mark-glyph">${match[2]}</span></button>
+    <button class="${ayahClass}"${ayahStyle} data-ayah="${key}" data-page="${pageNumber}" aria-label="${ariaLabel}">${ayahGlyph}</button>
   `;
+}
+
+function renderAyahMarkGlyph(value) {
+  return `<span class="ayah-mark-glyph"><span class="ayah-mark-glyph-base">${value}</span><span class="ayah-mark-glyph-shine" aria-hidden="true">${value}</span></span>`;
 }
 
 function buildQcf4AyahMarkerAttrs(key, { pageNumber }) {
@@ -769,6 +784,13 @@ function buildQcf4AyahMarkerClass(key, activeTarget) {
     ringState.isFullyMastered ? "fully-mastered" : "",
     transitionActive ? "transition-target" : "",
     ayahActive ? "target" : ""
+  ].filter(Boolean).join(" ");
+}
+
+function buildQcf4AyahGroupClass(key) {
+  return [
+    "ayah-group",
+    state.ayahBookmarks.some((item) => item.key === key) ? "bookmarked-ayah" : ""
   ].filter(Boolean).join(" ");
 }
 
@@ -929,6 +951,148 @@ function renderSettings() {
   `;
 }
 
+function renderBulkFillModal() {
+  if (!bulkFillForm) return "";
+  const surahOptions = buildBulkFillSurahOptions();
+  const currentSurahOption = metadata.surahs?.find((surah) => surah.number === bulkFillForm.surahNumber);
+  const surahLabel = currentSurahOption?.transliteratedName || currentSurahOption?.englishName || `Surah ${bulkFillForm.surahNumber}`;
+  const verseMax = getBulkFillVerseMax(bulkFillForm.surahNumber);
+  const modeLabel = bulkFillForm.mode === "increment" ? "Increment" : "Replace";
+  return `
+    <div class="modal-backdrop" data-action="close-bulk-fill">
+      <section class="modal bulk-fill-modal" data-bulk-fill-modal role="dialog" aria-modal="true" aria-label="Bulk fill counts">
+        <header class="modal-head">
+          <strong>Bulk Fill Counts</strong>
+          <button class="icon-btn small" data-action="close-bulk-fill" aria-label="Close">${icons.close}</button>
+        </header>
+        <p class="settings-note">Defaults come from the first visible surah on this page. Reversed ayah ranges are normalized automatically before applying.</p>
+        <div class="setting-row bulk-fill-picker-row${bulkFillPicker === "mode" ? " open" : ""}">
+          <span>Mode<small>Replace current counts or add on top</small></span>
+          <div class="bulk-fill-picker-wrap">
+            <button class="bulk-fill-picker-trigger" data-action="toggle-bulk-fill-picker" data-picker="mode" aria-expanded="${bulkFillPicker === "mode"}">
+              <span>${modeLabel}</span>
+              <span class="bulk-fill-picker-caret">${bulkFillPicker === "mode" ? "▴" : "▾"}</span>
+            </button>
+            ${bulkFillPicker === "mode" ? renderBulkFillPickerMenu({
+              picker: "mode",
+              options: [
+                { value: "replace", label: "Replace", selected: bulkFillForm.mode === "replace" },
+                { value: "increment", label: "Increment", selected: bulkFillForm.mode === "increment" }
+              ]
+            }) : ""}
+          </div>
+        </div>
+        <div class="setting-row bulk-fill-picker-row${bulkFillPicker === "surahNumber" ? " open" : ""}">
+          <span>Surah<small>${escapeHtml(surahLabel)}</small></span>
+          <div class="bulk-fill-picker-wrap">
+            <button class="bulk-fill-picker-trigger" data-action="toggle-bulk-fill-picker" data-picker="surahNumber" aria-expanded="${bulkFillPicker === "surahNumber"}">
+              <span>${escapeHtml(buildBulkFillSurahLabel(bulkFillForm.surahNumber))}</span>
+              <span class="bulk-fill-picker-caret">${bulkFillPicker === "surahNumber" ? "▴" : "▾"}</span>
+            </button>
+            ${bulkFillPicker === "surahNumber" ? renderBulkFillPickerMenu({
+              picker: "surahNumber",
+              options: surahOptions.map((option) => ({
+                value: String(option.number),
+                label: option.label,
+                selected: option.number === bulkFillForm.surahNumber
+              }))
+            }) : ""}
+          </div>
+        </div>
+        <div class="bulk-fill-range-grid">
+          <label class="setting-row">
+            <span>Start ayah<small>Current page default</small></span>
+            ${renderBulkFillWheel({
+              key: "startAyah",
+              value: bulkFillForm.startAyah,
+              min: 1,
+              max: verseMax,
+              label: "Start ayah"
+            })}
+          </label>
+          <label class="setting-row">
+            <span>End ayah<small>Current page default</small></span>
+            ${renderBulkFillWheel({
+              key: "endAyah",
+              value: bulkFillForm.endAyah,
+              min: 1,
+              max: verseMax,
+              label: "End ayah"
+            })}
+          </label>
+        </div>
+        <label class="setting-row">
+          <span>Repetition count<small>Applied to each ayah in range</small></span>
+          ${renderBulkFillWheel({
+            key: "repetitionCount",
+            value: bulkFillForm.repetitionCount,
+            min: 0,
+            max: 40,
+            label: "Repetition count"
+          })}
+        </label>
+        <label class="setting-row">
+          <span>Transition count<small>Only for consecutive in-range ayahs</small></span>
+          ${renderBulkFillWheel({
+            key: "transitionCount",
+            value: bulkFillForm.transitionCount,
+            min: 0,
+            max: 40,
+            label: "Transition count"
+          })}
+        </label>
+        <div class="actions">
+          <button class="secondary-btn" data-action="close-bulk-fill">Cancel</button>
+          <button class="primary-btn" data-action="submit-bulk-fill">Apply</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderBulkFillPickerMenu({ picker, options }) {
+  return `
+    <div class="bulk-fill-picker-menu" data-bulk-fill-picker-menu="${picker}">
+      ${options.map((option) => `
+        <button
+          class="bulk-fill-picker-option${option.selected ? " selected" : ""}"
+          data-action="select-bulk-fill-picker"
+          data-picker="${picker}"
+          data-value="${escapeHtml(option.value)}"
+        >
+          <span>${escapeHtml(option.label)}</span>
+          ${option.selected ? `<span class="bulk-fill-picker-check">✓</span>` : ""}
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderBulkFillWheel({ key, value, min, max, label }) {
+  const previous = value > min ? value - 1 : "";
+  const next = value < max ? value + 1 : "";
+  return `
+    <div
+      class="bulk-fill-wheel"
+      data-bulk-fill-wheel="${key}"
+      data-min="${min}"
+      data-max="${max}"
+      tabindex="0"
+      role="spinbutton"
+      aria-label="${label}"
+      aria-valuemin="${min}"
+      aria-valuemax="${max}"
+      aria-valuenow="${value}"
+    >
+      <button class="bulk-fill-wheel-hit top" type="button" data-bulk-fill-step="${key}" data-direction="-1" aria-hidden="true" tabindex="-1"></button>
+      <div class="bulk-fill-wheel-value ghost" data-bulk-fill-previous>${previous}</div>
+      <div class="bulk-fill-wheel-value active" data-bulk-fill-current>${value}</div>
+      <div class="bulk-fill-wheel-value ghost" data-bulk-fill-next>${next}</div>
+      <button class="bulk-fill-wheel-hit bottom" type="button" data-bulk-fill-step="${key}" data-direction="1" aria-hidden="true" tabindex="-1"></button>
+    </div>
+  `;
+}
+
 function renderThresholdSettings(title, profileKey, profile) {
   return `
     <fieldset class="threshold-group">
@@ -952,6 +1116,11 @@ function renderThresholdSettings(title, profileKey, profile) {
 function bindGlobalEvents() {
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      if (bulkFillOpen) {
+        closeBulkFill();
+        render();
+        return;
+      }
       if (helpOpen) {
         helpOpen = false;
         render();
@@ -992,6 +1161,15 @@ function bindScreenEvents() {
   }));
   app.querySelectorAll("[data-remove-page-bookmark]").forEach((button) => button.addEventListener("click", () => removePageBookmark(Number(button.dataset.removePageBookmark))));
   app.querySelectorAll("[data-remove-ayah-bookmark]").forEach((button) => button.addEventListener("click", () => removeAyahBookmark(button.dataset.removeAyahBookmark)));
+  app.querySelectorAll("[data-bulk-fill-field]").forEach((field) => {
+    const handler = () => updateBulkFillField(field.dataset.bulkFillField, field.value);
+    field.addEventListener("input", handler);
+    field.addEventListener("change", handler);
+  });
+  app.querySelectorAll("[data-bulk-fill-step]").forEach((button) => {
+    button.addEventListener("click", () => stepBulkFillField(button.dataset.bulkFillStep, Number(button.dataset.direction)));
+  });
+  app.querySelectorAll("[data-bulk-fill-wheel]").forEach((wheel) => bindBulkFillWheel(wheel));
 
   app.querySelectorAll(".page-slot.current .ayah-marker[data-ayah], .page-slot.current button.ayah-mark[data-ayah]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -1178,6 +1356,10 @@ async function handleAction(event, el) {
   if (action === "close-settings") settingsOpen = false;
   if (action === "open-help") { await openHelp(); return; }
   if (action === "close-help") helpOpen = false;
+  if (action === "open-bulk-fill") openBulkFill();
+  if (action === "close-bulk-fill") closeBulkFill();
+  if (action === "toggle-bulk-fill-picker") toggleBulkFillPicker(el.dataset.picker);
+  if (action === "select-bulk-fill-picker") selectBulkFillPicker(el.dataset.picker, el.dataset.value);
   if (action === "next-help") helpSlideIndex = Math.min(helpSlides.length - 1, helpSlideIndex + 1);
   if (action === "previous-help") helpSlideIndex = Math.max(0, helpSlideIndex - 1);
   if (action === "close-modal") detailTarget = null;
@@ -1196,6 +1378,7 @@ async function handleAction(event, el) {
   if (action === "next-review") nextReview();
   if (action === "finish-review") { review = null; await goHome("progress"); return; }
   if (action === "export-json") exportJson();
+  if (action === "submit-bulk-fill") { await submitBulkFill(); return; }
   if (action === "seed-test-data") seedTestData();
   if (action === "restore-test-data") restoreSeedBackup();
   if (action === "reset-all") resetAll();
@@ -1267,6 +1450,193 @@ async function moveTrack(direction, options = {}) {
   } finally {
     pageNavigationInFlight = false;
   }
+}
+
+function buildBulkFillDefaults(pageData, currentPage) {
+  const ayahKeys = visibleAyahKeysForPage(pageData);
+  const firstAyahKey = ayahKeys[0] || `${metadata.pages[String(currentPage)]?.surahsPresent?.[0] || 1}:1`;
+  const firstSurah = Number(firstAyahKey.split(":")[0]);
+  const surahAyahKeys = ayahKeys.filter((key) => Number(key.split(":")[0]) === firstSurah);
+  const startAyahKey = surahAyahKeys[0] || firstAyahKey;
+  const endAyahKey = surahAyahKeys[surahAyahKeys.length - 1] || startAyahKey;
+
+  return {
+    currentPage,
+    surahNumber: firstSurah,
+    startAyah: Number(startAyahKey.split(":")[1]),
+    endAyah: Number(endAyahKey.split(":")[1]),
+    repetitionCount: 0,
+    transitionCount: 0,
+    mode: "replace"
+  };
+}
+
+function buildBulkFillSurahOptions() {
+  const visibleSurahNumbers = metadata.pages[String(route.page)]?.surahsPresent || [];
+  if (visibleSurahNumbers.length) {
+    return visibleSurahNumbers.map((number) => ({
+      number,
+      label: buildBulkFillSurahLabel(number)
+    }));
+  }
+
+  return (metadata.surahs || []).map((surah) => ({
+    number: surah.number,
+    label: buildBulkFillSurahLabel(surah.number)
+  }));
+}
+
+function buildBulkFillSurahLabel(surahNumber) {
+  const surah = metadata.surahs?.find((entry) => entry.number === surahNumber);
+  const name = surah?.transliteratedName || surah?.englishName || `Surah ${surahNumber}`;
+  return `${surahNumber}. ${name}`;
+}
+
+function getBulkFillVerseMax(surahNumber) {
+  return surahVerseCounts.get(surahNumber) || 1;
+}
+
+function clampBulkFillAyah(value, surahNumber) {
+  return Math.min(Math.max(1, Number(value) || 1), getBulkFillVerseMax(surahNumber));
+}
+
+function clampBulkFillCount(value) {
+  return Math.min(40, Math.max(0, Number(value) || 0));
+}
+
+function applyBulkFillSurahDefaults(surahNumber) {
+  if (!bulkFillForm) return;
+  const visibleAyahs = visibleAyahKeysForPage(trackPages.current).filter((key) => Number(key.split(":")[0]) === surahNumber);
+  bulkFillForm = {
+    ...bulkFillForm,
+    surahNumber,
+    startAyah: visibleAyahs.length
+      ? Number(visibleAyahs[0].split(":")[1])
+      : clampBulkFillAyah(bulkFillForm.startAyah, surahNumber),
+    endAyah: visibleAyahs.length
+      ? Number(visibleAyahs[visibleAyahs.length - 1].split(":")[1])
+      : clampBulkFillAyah(bulkFillForm.endAyah, surahNumber)
+  };
+}
+
+function updateBulkFillField(key, value) {
+  if (!bulkFillForm) return;
+  if (key === "surahNumber") {
+    applyBulkFillSurahDefaults(Number(value));
+    render();
+    return;
+  }
+
+  if (key === "startAyah" || key === "endAyah") {
+    bulkFillForm = {
+      ...bulkFillForm,
+      [key]: clampBulkFillAyah(value, bulkFillForm.surahNumber)
+    };
+    render();
+    return;
+  }
+
+  bulkFillForm = {
+    ...bulkFillForm,
+    [key]: ["repetitionCount", "transitionCount"].includes(key) ? clampBulkFillCount(value) : value
+  };
+}
+
+function stepBulkFillField(key, direction) {
+  if (!bulkFillForm || !direction) return;
+  if (key === "startAyah" || key === "endAyah") {
+    updateBulkFillField(key, bulkFillForm[key] + direction);
+    render();
+    return;
+  }
+  if (key === "repetitionCount" || key === "transitionCount") {
+    updateBulkFillField(key, bulkFillForm[key] + direction);
+    render();
+  }
+}
+
+function bindBulkFillWheel(wheel) {
+  let pointerY = null;
+
+  wheel.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    stepBulkFillField(wheel.dataset.bulkFillWheel, event.deltaY > 0 ? 1 : -1);
+  }, { passive: false });
+
+  wheel.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      stepBulkFillField(wheel.dataset.bulkFillWheel, -1);
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      stepBulkFillField(wheel.dataset.bulkFillWheel, 1);
+    }
+  });
+
+  wheel.addEventListener("pointerdown", (event) => {
+    pointerY = event.clientY;
+    wheel.setPointerCapture?.(event.pointerId);
+  });
+
+  wheel.addEventListener("pointermove", (event) => {
+    if (pointerY == null) return;
+    const delta = event.clientY - pointerY;
+    if (Math.abs(delta) < 22) return;
+    stepBulkFillField(wheel.dataset.bulkFillWheel, delta > 0 ? 1 : -1);
+    pointerY = event.clientY;
+  });
+
+  const finishPointer = (event) => {
+    if (pointerY == null) return;
+    pointerY = null;
+    if (wheel.hasPointerCapture?.(event.pointerId)) {
+      wheel.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  wheel.addEventListener("pointerup", finishPointer);
+  wheel.addEventListener("pointercancel", finishPointer);
+}
+
+function openBulkFill() {
+  bulkFillForm = buildBulkFillDefaults(trackPages.current, route.page);
+  bulkFillOpen = true;
+  bulkFillPicker = null;
+}
+
+function closeBulkFill() {
+  bulkFillOpen = false;
+  bulkFillForm = null;
+  bulkFillPicker = null;
+}
+
+async function submitBulkFill() {
+  if (!bulkFillForm) return;
+
+  state = bulkFillAyahRangeCounts({
+    state,
+    metadata,
+    startAyahKey: `${bulkFillForm.surahNumber}:${clampBulkFillAyah(bulkFillForm.startAyah, bulkFillForm.surahNumber)}`,
+    endAyahKey: `${bulkFillForm.surahNumber}:${clampBulkFillAyah(bulkFillForm.endAyah, bulkFillForm.surahNumber)}`,
+    repetitionCount: Number.isFinite(bulkFillForm.repetitionCount) ? bulkFillForm.repetitionCount : 0,
+    transitionCount: Number.isFinite(bulkFillForm.transitionCount) ? bulkFillForm.transitionCount : 0,
+    mode: bulkFillForm.mode === "increment" ? "increment" : "replace"
+  });
+
+  closeBulkFill();
+  await saveState();
+  render();
+}
+
+function toggleBulkFillPicker(picker) {
+  bulkFillPicker = bulkFillPicker === picker ? null : picker;
+}
+
+function selectBulkFillPicker(picker, value) {
+  if (!bulkFillForm) return;
+  updateBulkFillField(picker, value);
+  bulkFillPicker = null;
 }
 
 function handleAyahTap(key, marker = null) {

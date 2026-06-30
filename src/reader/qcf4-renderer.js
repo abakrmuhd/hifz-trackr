@@ -23,9 +23,13 @@ function renderGlyphItem(item, index, items, group, options) {
   const style = [`font-family: '${family}'`, markerStyle].filter(Boolean).join("; ");
   const space = index < items.length - 1 ? '<span class="space"> </span>' : "";
   const content = item.type === "ayah-marker"
-    ? `<span class="ayah-mark-glyph">${glyph}</span>`
+    ? renderAyahMarkGlyph(glyph)
     : glyph;
   return `<span class="${typeClass}"${markerAttrs} style="${escapeHtml(style)}">${content}</span>${space}`;
+}
+
+function renderAyahMarkGlyph(glyph) {
+  return `<span class="ayah-mark-glyph"><span class="ayah-mark-glyph-base">${glyph}</span><span class="ayah-mark-glyph-shine" aria-hidden="true">${glyph}</span></span>`;
 }
 
 function renderGlyphs(glyphs = [], group, options) {
