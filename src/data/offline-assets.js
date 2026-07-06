@@ -1,12 +1,12 @@
-export const CACHE_VERSION = "hifz-trackr-v72-transition-metadata";
+export const CACHE_VERSION = "hifz-trackr-v89-stable-side-qcf4";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-07-01-transition-metadata",
-  "/src/styles.css?v=2026-07-01-transition-metadata"
+  "/src/app.js?v=2026-07-07-stable-side-qcf4",
+  "/src/styles.css?v=2026-07-07-stable-side-qcf4"
 ];
 
 export const DATA_ASSETS = [

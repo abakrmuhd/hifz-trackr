@@ -111,12 +111,14 @@ test("settings exposes a developer-only seed action and handles it", () => {
 });
 
 test("reading page exposes a bulk-fill action button and modal wiring", () => {
-  assert.match(appSource, /class="\$\{bulkFillButtonClasses\}" data-action="open-bulk-fill"/);
+  assert.match(appSource, /class="icon-btn reader-bulk-fill-btn" data-action="open-bulk-fill"/);
   assert.match(appSource, /function openBulkFill\(\)/);
   assert.match(appSource, /function buildBulkFillDefaults\(/);
   assert.match(appSource, /function getBulkFillVerseMax\(/);
   assert.match(appSource, /function clampBulkFillAyah\(/);
   assert.match(appSource, /data-bulk-fill-modal/);
+  assert.match(appSource, /Fill Repetition & Transition Count/);
+  assert.match(appSource, /Use this to fill repetition and transition counts for a range of ayahs after practice done outside the app\./);
   assert.match(appSource, /function renderBulkFillWheel\(/);
   assert.match(appSource, /function renderBulkFillPickerMenu\(/);
   assert.match(appSource, /function stepBulkFillField\(/);
@@ -131,12 +133,15 @@ test("reading page exposes a bulk-fill action button and modal wiring", () => {
   assert.match(appSource, /key:\s*"repetitionCount"/);
   assert.match(appSource, /key:\s*"transitionCount"/);
   assert.match(appSource, /data-bulk-fill-wheel="\$\{key\}"/);
+  assert.match(appSource, /data-bulk-fill-track/);
   assert.match(appSource, /data-action="toggle-bulk-fill-picker"/);
   assert.match(appSource, /data-action="select-bulk-fill-picker"/);
   assert.doesNotMatch(appSource, /data-bulk-fill-step=/);
   assert.match(appSource, /if \(key === "startAyah" \|\| key === "endAyah"\) \{/);
   assert.match(appSource, /syncBulkFillWheel\(key\);/);
   assert.match(appSource, /clampBulkFillAyah\(value, bulkFillForm\.surahNumber\)/);
+  assert.match(appSource, /wheel\.style\.setProperty\("--bulk-fill-offset", "0px"\);/);
+  assert.match(appSource, /const applyDragOffset = \(\) => \{/);
   assert.match(appSource, /event\.deltaY > 0 \? -1 : 1/);
   assert.match(appSource, /event\.key === "ArrowUp"[\s\S]*stepBulkFillField\(wheel\.dataset\.bulkFillWheel, 1\);/);
   assert.match(appSource, /event\.key === "ArrowDown"[\s\S]*stepBulkFillField\(wheel\.dataset\.bulkFillWheel, -1\);/);
@@ -150,13 +155,17 @@ test("reading page exposes a bulk-fill action button and modal wiring", () => {
   assert.match(appSource, /if \(action === "submit-bulk-fill"\) \{ await submitBulkFill\(\); return; \}/);
 });
 
-test("bulk-fill button styling keeps the action fixed off the page navigation buttons", () => {
+test("bulk-fill button styling matches the reader header action buttons", () => {
   assert.match(stylesSource, /\.reader-bulk-fill-btn/);
-  assert.match(stylesSource, /position:\s*fixed/);
-  assert.match(stylesSource, /inset-inline-end:/);
-  assert.match(stylesSource, /bottom:\s*82px/);
-  assert.match(stylesSource, /\.reader-bulk-fill-btn\.with-review/);
+  assert.match(appSource, /<div class="top-actions">[\s\S]*reader-bulk-fill-btn[\s\S]*bookmark-btn/);
+  assert.match(stylesSource, /font-size:\s*1\.5rem/);
+  assert.match(stylesSource, /font-weight:\s*900/);
   assert.match(stylesSource, /\.bulk-fill-wheel/);
+  assert.match(stylesSource, /--bulk-fill-offset:\s*0px/);
+  assert.match(stylesSource, /\.bulk-fill-wheel-track/);
+  assert.match(stylesSource, /transform:\s*translateY\(var\(--bulk-fill-offset\)\)/);
+  assert.match(stylesSource, /transition:\s*transform 140ms ease/);
+  assert.match(stylesSource, /\.bulk-fill-wheel\.dragging \.bulk-fill-wheel-track/);
   assert.match(stylesSource, /\.bulk-fill-wheel-hit[\s\S]*pointer-events:\s*none/);
   assert.match(stylesSource, /\.bulk-fill-picker-menu/);
   assert.match(stylesSource, /\.bulk-fill-picker-option\.selected/);

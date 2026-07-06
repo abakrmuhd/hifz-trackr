@@ -4,6 +4,14 @@ export function getTrackDirection({ dx, dy, startThreshold }) {
   return dx < 0 ? "previous" : "next";
 }
 
+export function resolveGestureAxis({ dx, dy, startThreshold }) {
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+  if (absX <= startThreshold && absY <= startThreshold) return null;
+  if (absX === absY) return null;
+  return absX > absY ? "horizontal" : "vertical";
+}
+
 export function shouldCommitTrackMove({ dx, dy, commitDistance, verticalLimit }) {
   return Math.abs(dx) > commitDistance && Math.abs(dy) < verticalLimit;
 }

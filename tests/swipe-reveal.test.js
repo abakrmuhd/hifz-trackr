@@ -5,6 +5,7 @@ import {
   clampTrackOffset,
   getTrackDirection,
   getTrackTargetPage,
+  resolveGestureAxis,
   shouldCommitTrackMove,
   shouldStartTrackGesture
 } from "../src/reader/swipe-reveal.js";
@@ -18,6 +19,13 @@ test("getTrackDirection treats equality and vertical drags as non-drags", () => 
   assert.equal(getTrackDirection({ dx: 8, dy: 0, startThreshold: 8 }), null);
   assert.equal(getTrackDirection({ dx: 24, dy: 24, startThreshold: 8 }), null);
   assert.equal(getTrackDirection({ dx: 24, dy: 60, startThreshold: 8 }), null);
+});
+
+test("resolveGestureAxis locks to the first dominant drag axis", () => {
+  assert.equal(resolveGestureAxis({ dx: 6, dy: 7, startThreshold: 8 }), null);
+  assert.equal(resolveGestureAxis({ dx: 28, dy: 10, startThreshold: 8 }), "horizontal");
+  assert.equal(resolveGestureAxis({ dx: 10, dy: 28, startThreshold: 8 }), "vertical");
+  assert.equal(resolveGestureAxis({ dx: 28, dy: 28, startThreshold: 8 }), null);
 });
 
 test("shouldCommitTrackMove uses strict horizontal and vertical thresholds", () => {

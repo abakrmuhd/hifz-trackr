@@ -66,11 +66,21 @@ test("desktop text selection bypasses page swipe startup", () => {
   assert.match(appSource, /startedOnSelectableText:\s*Boolean\(event\.target\.closest\?\.\("\.mushaf-line"\)\)/);
 });
 
-test("margin swipes suppress text selection before drag threshold", () => {
+test("horizontal reader swipes arm after the drag axis locks", () => {
   assert.match(appSource, /pageShell\.classList\.add\("swipe-armed"\)/);
-  assert.match(appSource, /event\.preventDefault\(\);\s*swipeStart = \{/);
+  assert.match(appSource, /resolveGestureAxis\(\{\s*dx,\s*dy,\s*startThreshold:\s*SWIPE_DRAG_START\s*\}\)/);
+  assert.match(appSource, /if \(swipeStart\.axis === "horizontal"\) \{[\s\S]*pageShell\.setPointerCapture\?\.\(event\.pointerId\)/);
   assert.match(appSource, /pageShell\.classList\.remove\("swipe-armed"\)/);
   assert.match(styles, /\.page-shell\.swipe-armed\s+\.mushaf-line[\s\S]*user-select:\s*none/);
+});
+
+test("vertical reader drags scroll the current page instead of turning pages", () => {
+  assert.match(appSource, /if \(swipeStart\.axis === "vertical"\) \{/);
+  assert.match(appSource, /currentSlot\.scrollTop = swipeStart\.scrollTop - dy/);
+  assert.match(appSource, /axis === "horizontal" && trackState\.direction && shouldCommitTrackMove/);
+  assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*overflow-y:\s*auto/);
+  assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*overscroll-behavior:\s*contain/);
+  assert.match(styles, /\.page-slot\.current::-webkit-scrollbar\s*\{[\s\S]*display:\s*none/);
 });
 
 test("ayah feedback animations stay visible in the app preview", () => {
@@ -100,22 +110,27 @@ test("page navigation click binding excludes ayah marker buttons", () => {
   assert.match(appSource, /querySelectorAll\("\[data-page\]:not\(\[data-ayah\]\)"/);
 });
 
-test("reader exposes bottom previous and next buttons for desktop navigation", () => {
-  assert.match(appSource, /class="reader-bottom-nav"/);
-  assert.match(appSource, /class="reader-bottom-btn next" data-action="next-page"[^>]*aria-label="Next page"[\s\S]*?class="reader-bottom-btn previous" data-action="previous-page"[^>]*aria-label="Previous page"/);
-  assert.match(appSource, /class="reader-bottom-btn previous" data-action="previous-page"[^>]*aria-label="Previous page"[\s\S]*?\$\{icons\.previousPage\}/);
-  assert.match(appSource, /class="reader-bottom-btn next" data-action="next-page"[^>]*aria-label="Next page"[\s\S]*?\$\{icons\.nextPage\}/);
+test("reader omits bottom previous and next page buttons", () => {
   assert.match(appSource, /previousPage:\s*`<svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"\/><\/svg>`/);
   assert.match(appSource, /nextPage:\s*`<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"\/><\/svg>`/);
+  assert.doesNotMatch(appSource, /class="reader-bottom-nav"/);
+  assert.doesNotMatch(appSource, /class="reader-bottom-btn/);
+  assert.doesNotMatch(appSource, /aria-label="Previous page"/);
+  assert.doesNotMatch(appSource, /aria-label="Next page"/);
   assert.doesNotMatch(appSource, />Previous page<\/button>/);
   assert.doesNotMatch(appSource, />Next page<\/button>/);
-  assert.match(styles, /\.reader-bottom-nav/);
-  assert.match(styles, /\.reader-bottom-btn/);
+  assert.doesNotMatch(styles, /\.reader-bottom-nav/);
+  assert.doesNotMatch(styles, /\.reader-bottom-btn/);
 });
 
 test("reader moves page metadata into side-line-safe page chrome", () => {
   assert.match(appSource, /function renderPageChrome\(page\)/);
-  assert.match(appSource, /renderPageChrome\(route\.page\)/);
+  assert.match(appSource, /function renderPageTopChrome\(page\)/);
+  assert.match(appSource, /function renderPageBottomChrome\(page\)/);
+  assert.match(appSource, /renderPageTopChrome\(pageNumber\)[\s\S]*renderQcf4Page\([\s\S]*renderPageBottomChrome\(pageNumber\)/);
+  assert.match(appSource, /renderPageTopChrome\(pageNumber\)[\s\S]*<div class="mushaf" dir="rtl">\$\{lines\}<\/div>[\s\S]*renderPageBottomChrome\(pageNumber\)/);
+  assert.doesNotMatch(appSource, /renderPageChrome\(pageNumber\)/);
+  assert.doesNotMatch(appSource, /renderPageChrome\(route\.page\)/);
   assert.match(appSource, /class="page-chrome page-top-meta"/);
   assert.match(appSource, /class="page-meta-surah"/);
   assert.match(appSource, /class="page-meta-range"/);
@@ -123,10 +138,36 @@ test("reader moves page metadata into side-line-safe page chrome", () => {
   assert.match(appSource, /class="page-bottom-meta">\$\{page\}<\/div>/);
   assert.match(appSource, /formatPageAyahRange\(pageData\.ayahKeys\)/);
   assert.match(appSource, /getPagePrimarySurahName\(pageData\)/);
-  assert.doesNotMatch(appSource, /`Page \$\{route\.page\} Â· \$\{metadata\.pages\[String\(route\.page\)\]\?\.label \|\| ""\}`/);
-  assert.match(styles, /\.page-chrome\s*\{[\s\S]*pointer-events:\s*none/);
-  assert.match(styles, /\.page-shell\.odd\s*\{[\s\S]*--page-chrome-right:\s*40px/);
-  assert.match(styles, /\.page-shell\.even\s*\{[\s\S]*--page-chrome-left:\s*40px/);
+  assert.doesNotMatch(appSource, /`Page \$\{route\.page\} · \$\{metadata\.pages\[String\(route\.page\)\]\?\.label \|\| ""\}`/);
+  const pageChromeRule = styles.match(/\.page-chrome\s*\{[^}]*\}/)?.[0] || "";
+  assert.match(pageChromeRule, /pointer-events:\s*none/);
+  assert.match(pageChromeRule, /padding-inline:\s*var\(--page-chrome-left\)\s*var\(--page-chrome-right\)/);
+  assert.doesNotMatch(pageChromeRule, /position:\s*absolute/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto/);
+  assert.match(styles, /\.page-slot\.odd\s*\{[\s\S]*--page-chrome-right:\s*40px/);
+  assert.match(styles, /\.page-slot\.even\s*\{[\s\S]*--page-chrome-left:\s*40px/);
+  assert.match(styles, /\.page-shell\s*\{[\s\S]*--reader-page-available-height:\s*max\(430px,\s*calc\(100dvh - 82px\)\)/);
+  assert.match(styles, /\.page-shell\s*\{[\s\S]*height:\s*min\([\s\S]*var\(--reader-page-available-height\)/);
+});
+
+test("reader vertical page lines span the full shell while slots reserve text-safe gutters", () => {
+  assert.match(styles, /\.page-shell\s*\{[\s\S]*--page-shell-y-padding:\s*18px/);
+  assert.match(styles, /\.page-shell\s*\{[\s\S]*margin-top:\s*0/);
+  assert.match(styles, /\.page-shell\s*\{[\s\S]*padding:\s*var\(--page-shell-y-padding\) 0/);
+  assert.doesNotMatch(styles, /\.page-shell\.odd\s*\{[^}]*padding-left/);
+  assert.doesNotMatch(styles, /\.page-shell\.even\s*\{[^}]*padding-right/);
+  assert.match(styles, /\.page-track\s*\{[\s\S]*height:\s*calc\(100% \+ \(var\(--page-shell-y-padding\) \* 2\)\)/);
+  assert.match(styles, /\.page-track\s*\{[\s\S]*margin-block:\s*calc\(var\(--page-shell-y-padding\) \* -1\)/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*padding-block:\s*var\(--page-shell-y-padding\)/);
+  assert.match(styles, /\.page-slot\.odd\s*\{[\s\S]*padding-right:\s*18px/);
+  assert.match(styles, /\.page-slot\.even\s*\{[\s\S]*padding-left:\s*18px/);
+  assert.match(styles, /\.page-slot\.odd::after,\s*\.page-slot\.even::before\s*\{[\s\S]*top:\s*0;[\s\S]*bottom:\s*0/);
+  assert.match(styles, /\.page-slot\.odd::after\s*\{[\s\S]*right:\s*0/);
+  assert.match(styles, /\.page-slot\.even::before\s*\{[\s\S]*left:\s*0/);
+  assert.doesNotMatch(styles, /\.page-shell\.odd::after/);
+  assert.doesNotMatch(styles, /\.page-shell\.even::before/);
+  assert.doesNotMatch(styles, /right:\s*-15px/);
+  assert.doesNotMatch(styles, /left:\s*-15px/);
 });
 
 test("reader no longer renders the swipe hint copy", () => {
@@ -164,6 +205,9 @@ test("transition underline renders as a centered source-ayah cue", () => {
 test("transition increment triggers a center-out shine on the source ayah", () => {
   assert.match(styles, /\.transition-shine::after[\s\S]*animation:\s*transition-shine/);
   assert.match(styles, /@keyframes transition-shine[\s\S]*clip-path:\s*inset\(0 50%\)/);
+  assert.match(styles, /@keyframes transition-track-shine[\s\S]*100%\s*\{[\s\S]*var\(--transition-color\)/);
+  assert.match(appSource, /const sourceKey = sourceAyahKeyForMutation\(key\);[\s\S]*refreshVisibleAyahMarkerPresentation\(sourceKey\);[\s\S]*await saveState\(\)/);
+  assert.match(appSource, /function refreshVisibleAyahMarkerPresentation\(key\)[\s\S]*--transition-color[\s\S]*ringState\.transitionCountColor/);
   assert.match(appSource, /if \(key\.includes\("\|"\)\) restartTransitionShine\(marker\)/);
   assert.match(appSource, /function restartTransitionShine\(marker\)/);
 });

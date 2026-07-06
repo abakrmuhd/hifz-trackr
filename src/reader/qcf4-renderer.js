@@ -17,7 +17,7 @@ function renderGlyphItem(item, index, items, group, options) {
   const markerAttrs = item.type === "ayah-marker" && !options.inert
     ? ` ${options.buildAyahMarkerAttrs(group?.key, group, item)}`
     : "";
-  const markerStyle = item.type === "ayah-marker" && !options.inert
+  const markerStyle = item.type === "ayah-marker"
     ? options.buildAyahMarkerStyle(group?.key, group, item)
     : "";
   const style = [`font-family: '${family}'`, markerStyle].filter(Boolean).join("; ");

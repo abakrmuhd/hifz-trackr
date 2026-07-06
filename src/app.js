@@ -51,9 +51,10 @@ import {
   clampTrackOffset,
   getTrackDirection,
   getTrackTargetPage,
+  resolveGestureAxis,
   shouldCommitTrackMove,
   shouldStartTrackGesture
-} from "./reader/swipe-reveal.js?v=2026-06-22-page-turn-fill";
+} from "./reader/swipe-reveal.js?v=2026-07-04-scrollable-reader-page";
 
 const PAGE_COUNT = 604;
 const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
@@ -150,6 +151,12 @@ const PAGE_TURN_EASING = "cubic-bezier(.2, .8, .2, 1)";
 const TRACK_NEXT_TRANSFORM = "0%";
 const TRACK_CURRENT_TRANSFORM = "-33.333333%";
 const TRACK_PREVIOUS_TRANSFORM = "-66.666667%";
+const BULK_FILL_COUNT_MAX = 40;
+const BULK_FILL_MODE_OPTIONS = [
+  { value: "replace", label: "Replace" },
+  { value: "increment", label: "Increment" }
+];
+const BULK_FILL_NOTE = "Use this to fill repetition and transition counts for a range of ayahs after practice done outside the app. Defaults come from the first visible surah on this page, and reversed ayah ranges are normalized automatically.";
 const NUMERIC_SETTING_RULES = {
   doubleTapWindow: { min: 150, max: 600, step: 25, label: "Double tap window" },
   reviewQueueSize: { min: 4, max: 30, step: 1, label: "Review queue size" }
@@ -477,10 +484,6 @@ function renderReading() {
   const pageNumbers = buildTrackPages({ currentPage: route.page, pageCount: PAGE_COUNT });
   const pageBookmarked = state.pageBookmarks.includes(route.page);
   const activeTarget = resolveReaderTarget();
-  const bulkFillButtonClasses = [
-    "reader-bulk-fill-btn",
-    review ? "with-review" : ""
-  ].filter(Boolean).join(" ");
   const undoButtonClasses = [
     "floating-undo",
     review ? "with-review" : ""
@@ -491,24 +494,19 @@ function renderReading() {
         <button class="icon-btn" data-action="home" aria-label="Back">${icons.back}</button>
         <div class="reading-meta">${review ? `Review · ${review.index + 1} of ${review.queue.length}` : ""}</div>
         <div class="top-actions">
+          <button class="icon-btn reader-bulk-fill-btn" data-action="open-bulk-fill" aria-label="Bulk fill counts">+</button>
           <button class="icon-btn ${pageBookmarked ? "active" : ""} bookmark-btn" data-action="toggle-page-bookmark" aria-label="Toggle page bookmark">${icons.bookmark}</button>
           ${renderHelpButton()}
           <button class="icon-btn" data-action="settings" data-dev-mode-trigger aria-label="Settings">${icons.settings}</button>
         </div>
       </header>
       <section class="page-shell ${route.page % 2 ? "odd" : "even"}" aria-label="Mushaf page ${route.page}">
-        ${renderPageChrome(route.page)}
         <div class="page-track" data-track-direction="${trackState.direction || ""}">
           ${renderPageSlot(trackPages.next, pageNumbers.next, "next", true)}
           ${renderPageSlot(trackPages.current, route.page, "current", false, activeTarget)}
           ${renderPageSlot(trackPages.previous, pageNumbers.previous, "previous", true)}
         </div>
       </section>
-      <nav class="reader-bottom-nav" aria-label="Page navigation">
-        <button class="reader-bottom-btn next" data-action="next-page" aria-label="Next page" ${pageNumbers.next ? "" : "disabled"}>${icons.nextPage}</button>
-        <button class="reader-bottom-btn previous" data-action="previous-page" aria-label="Previous page" ${pageNumbers.previous ? "" : "disabled"}>${icons.previousPage}</button>
-      </nav>
-      <button class="${bulkFillButtonClasses}" data-action="open-bulk-fill" aria-label="Bulk fill counts">+</button>
       ${undoVisible ? `<button class="${undoButtonClasses}" data-action="undo" aria-label="Undo last repetition count">${icons.undo}</button>` : ""}
       ${review ? renderReviewBar() : ""}
     </main>
@@ -516,6 +514,10 @@ function renderReading() {
 }
 
 function renderPageChrome(page) {
+  return `${renderPageTopChrome(page)}${renderPageBottomChrome(page)}`;
+}
+
+function renderPageTopChrome(page) {
   const pageData = metadata.pages[String(page)] || {};
   return `
     <div class="page-chrome page-top-meta" aria-label="Page metadata">
@@ -523,6 +525,11 @@ function renderPageChrome(page) {
       <span class="page-meta-range">${escapeHtml(formatPageAyahRange(pageData.ayahKeys))}</span>
       <span class="page-meta-juz">Juz ${pageData.juz || ""}</span>
     </div>
+  `;
+}
+
+function renderPageBottomChrome(page) {
+  return `
     <div class="page-chrome page-bottom-wrap" aria-hidden="true">
       <div class="page-bottom-meta">${page}</div>
     </div>
@@ -689,6 +696,7 @@ function renderPageSlot(pageData, pageNumber, slotName, inert = false, activeTar
   if (qcf4PageData) {
     return `
       <div class="page-slot ${slotName} ${parity} ${openingPage} qcf4-slot" ${inert ? 'aria-hidden="true"' : ""}>
+        ${renderPageTopChrome(pageNumber)}
         ${renderQcf4Page(qcf4PageData, {
           inert,
           buildAyahAttrs: () => "",
@@ -697,13 +705,16 @@ function renderPageSlot(pageData, pageNumber, slotName, inert = false, activeTar
           buildAyahMarkerStyle: (key) => buildQcf4AyahMarkerStyle(key),
           buildGroupClass: (key) => buildQcf4AyahGroupClass(key)
         })}
+        ${renderPageBottomChrome(pageNumber)}
       </div>
     `;
   }
   const lines = legacyPageData.lines.map((line) => renderLine(line, activeTarget, { inert, pageNumber })).join("");
   return `
     <div class="page-slot ${slotName} ${parity} ${openingPage}" ${inert ? 'aria-hidden="true"' : ""}>
+      ${renderPageTopChrome(pageNumber)}
       <div class="mushaf" dir="rtl">${lines}</div>
+      ${renderPageBottomChrome(pageNumber)}
     </div>
   `;
 }
@@ -1002,10 +1013,10 @@ function renderBulkFillModal() {
     <div class="modal-backdrop" data-action="close-bulk-fill">
       <section class="modal bulk-fill-modal" data-bulk-fill-modal role="dialog" aria-modal="true" aria-label="Bulk fill counts">
         <header class="modal-head">
-          <strong>Bulk Fill Counts</strong>
+          <strong>Fill Repetition & Transition Count</strong>
           <button class="icon-btn small" data-action="close-bulk-fill" aria-label="Close">${icons.close}</button>
         </header>
-        <p class="settings-note">Defaults come from the first visible surah on this page. Reversed ayah ranges are normalized automatically before applying.</p>
+        <p class="settings-note">Use this to fill repetition and transition counts for a range of ayahs after practice done outside the app. Defaults come from the first visible surah on this page, and reversed ayah ranges are normalized automatically.</p>
         <div class="setting-row bulk-fill-picker-row${bulkFillPicker === "mode" ? " open" : ""}">
           <span>Mode<small>Replace current counts or add on top</small></span>
           <div class="bulk-fill-picker-wrap">
@@ -1015,10 +1026,7 @@ function renderBulkFillModal() {
             </button>
             ${bulkFillPicker === "mode" ? renderBulkFillPickerMenu({
               picker: "mode",
-              options: [
-                { value: "replace", label: "Replace", selected: bulkFillForm.mode === "replace" },
-                { value: "increment", label: "Increment", selected: bulkFillForm.mode === "increment" }
-              ]
+              options: buildBulkFillModeOptions()
             }) : ""}
           </div>
         </div>
@@ -1125,9 +1133,11 @@ function renderBulkFillWheel({ key, value, min, max, label }) {
       aria-valuenow="${value}"
     >
       <div class="bulk-fill-wheel-hit top" aria-hidden="true"></div>
-      <div class="bulk-fill-wheel-value ghost" data-bulk-fill-previous>${previous}</div>
-      <div class="bulk-fill-wheel-value active" data-bulk-fill-current>${value}</div>
-      <div class="bulk-fill-wheel-value ghost" data-bulk-fill-next>${next}</div>
+      <div class="bulk-fill-wheel-track" data-bulk-fill-track>
+        <div class="bulk-fill-wheel-value ghost" data-bulk-fill-previous>${previous}</div>
+        <div class="bulk-fill-wheel-value active" data-bulk-fill-current>${value}</div>
+        <div class="bulk-fill-wheel-value ghost" data-bulk-fill-next>${next}</div>
+      </div>
       <div class="bulk-fill-wheel-hit bottom" aria-hidden="true"></div>
     </div>
   `;
@@ -1246,22 +1256,38 @@ function bindScreenEvents() {
         pointerType: event.pointerType,
         startedOnSelectableText: Boolean(event.target.closest?.(".mushaf-line"))
       })) return;
-      event.preventDefault();
       swipeStart = {
         x: event.clientX,
         y: event.clientY,
         pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        axis: null,
+        scrollTop: app.querySelector(".page-slot.current")?.scrollTop || 0,
         offset: 0,
         dragging: false
       };
       trackState = { direction: null, dragging: false, offset: 0 };
-      pageShell.classList.add("swipe-armed");
-      pageShell.setPointerCapture?.(event.pointerId);
     });
     pageShell.addEventListener("pointermove", async (event) => {
       if (!swipeStart || pageNavigationInFlight) return;
       const dx = event.clientX - swipeStart.x;
       const dy = event.clientY - swipeStart.y;
+      if (!swipeStart.axis) {
+        swipeStart.axis = resolveGestureAxis({ dx, dy, startThreshold: SWIPE_DRAG_START });
+        if (swipeStart.axis === "horizontal") {
+          pageShell.classList.add("swipe-armed");
+          pageShell.setPointerCapture?.(event.pointerId);
+        }
+      }
+      if (swipeStart.axis === "vertical") {
+        swipeStart.dragging = true;
+        const currentSlot = app.querySelector(".page-slot.current");
+        if (currentSlot && swipeStart.pointerType === "mouse") {
+          currentSlot.scrollTop = swipeStart.scrollTop - dy;
+        }
+        return;
+      }
+      if (swipeStart.axis !== "horizontal") return;
       const direction = getTrackDirection({ dx, dy, startThreshold: SWIPE_DRAG_START });
       if (!direction) return;
       const targetPage = getTrackTargetPage({ currentPage: route.page, direction, pageCount: PAGE_COUNT });
@@ -1278,16 +1304,17 @@ function bindScreenEvents() {
       const dy = Math.abs(event.clientY - swipeStart.y);
       const dragOffset = swipeStart.offset || 0;
       const didDrag = swipeStart.dragging;
+      const axis = swipeStart.axis;
       swipeStart = null;
       pageShell.classList.remove("swipe-armed");
       pageShell.releasePointerCapture?.(event.pointerId);
-      const ayahMarker = !didDrag ? resolveAyahMarkerAtPoint(event.clientX, event.clientY) : null;
+      const ayahMarker = !didDrag && axis !== "vertical" ? resolveAyahMarkerAtPoint(event.clientX, event.clientY) : null;
       if (ayahMarker) {
         lastPointerAyahTap = { key: ayahMarker.dataset.ayah, until: Date.now() + 500 };
         handleAyahTap(ayahMarker.dataset.ayah, ayahMarker);
       }
       if (didDrag) suppressClickUntil = Date.now() + 350;
-      if (trackState.direction && shouldCommitTrackMove({ dx, dy, commitDistance: SWIPE_COMMIT_DISTANCE, verticalLimit: SWIPE_CANCEL_VERTICAL_LIMIT })) {
+      if (axis === "horizontal" && trackState.direction && shouldCommitTrackMove({ dx, dy, commitDistance: SWIPE_COMMIT_DISTANCE, verticalLimit: SWIPE_CANCEL_VERTICAL_LIMIT })) {
         moveTrack(trackState.direction, { dragOffset });
         return;
       }
@@ -1532,8 +1559,25 @@ function buildBulkFillSurahLabel(surahNumber) {
   return `${surahNumber}. ${name}`;
 }
 
+function buildBulkFillModeOptions() {
+  return BULK_FILL_MODE_OPTIONS.map((option) => ({
+    ...option,
+    selected: option.value === bulkFillForm?.mode
+  }));
+}
+
 function getBulkFillVerseMax(surahNumber) {
   return surahVerseCounts.get(surahNumber) || 1;
+}
+
+function isBulkFillAyahField(key) {
+  return key === "startAyah" || key === "endAyah";
+}
+
+function getBulkFillWheelBounds(key) {
+  return isBulkFillAyahField(key)
+    ? { min: 1, max: getBulkFillVerseMax(bulkFillForm?.surahNumber) }
+    : { min: 0, max: BULK_FILL_COUNT_MAX };
 }
 
 function clampBulkFillAyah(value, surahNumber) {
@@ -1541,7 +1585,7 @@ function clampBulkFillAyah(value, surahNumber) {
 }
 
 function clampBulkFillCount(value) {
-  return Math.min(40, Math.max(0, Number(value) || 0));
+  return Math.min(BULK_FILL_COUNT_MAX, Math.max(0, Number(value) || 0));
 }
 
 function applyBulkFillSurahDefaults(surahNumber) {
@@ -1572,7 +1616,6 @@ function updateBulkFillField(key, value) {
       ...bulkFillForm,
       [key]: clampBulkFillAyah(value, bulkFillForm.surahNumber)
     };
-    render();
     return;
   }
 
@@ -1584,15 +1627,9 @@ function updateBulkFillField(key, value) {
 
 function stepBulkFillField(key, direction) {
   if (!bulkFillForm || !direction) return;
-  if (key === "startAyah" || key === "endAyah") {
-    updateBulkFillField(key, bulkFillForm[key] + direction);
-    syncBulkFillWheel(key);
-    return;
-  }
-  if (key === "repetitionCount" || key === "transitionCount") {
-    updateBulkFillField(key, bulkFillForm[key] + direction);
-    syncBulkFillWheel(key);
-  }
+  if (!isBulkFillAyahField(key) && key !== "repetitionCount" && key !== "transitionCount") return;
+  updateBulkFillField(key, bulkFillForm[key] + direction);
+  syncBulkFillWheel(key);
 }
 
 function syncBulkFillWheel(key) {
@@ -1600,11 +1637,8 @@ function syncBulkFillWheel(key) {
   const wheel = app.querySelector(`[data-bulk-fill-wheel="${key}"]`);
   if (!wheel) return;
 
-  const min = key === "startAyah" || key === "endAyah" ? 1 : 0;
-  const max = key === "startAyah" || key === "endAyah"
-    ? getBulkFillVerseMax(bulkFillForm.surahNumber)
-    : 40;
-  const value = key === "startAyah" || key === "endAyah"
+  const { min, max } = getBulkFillWheelBounds(key);
+  const value = isBulkFillAyahField(key)
     ? clampBulkFillAyah(bulkFillForm[key], bulkFillForm.surahNumber)
     : clampBulkFillCount(bulkFillForm[key]);
   const previous = value > min ? value - 1 : "";
@@ -1622,6 +1656,7 @@ function syncBulkFillWheel(key) {
   if (previousEl) previousEl.textContent = String(previous);
   if (currentEl) currentEl.textContent = String(value);
   if (nextEl) nextEl.textContent = String(next);
+  wheel.style.setProperty("--bulk-fill-offset", "0px");
 }
 
 function bindBulkFillWheel(wheel) {
@@ -1631,6 +1666,11 @@ function bindBulkFillWheel(wheel) {
   let suppressClick = false;
   const dragStepPx = 18;
   const clickZoneRatio = 0.34;
+
+  const applyDragOffset = () => {
+    const limitedOffset = Math.max(-dragStepPx, Math.min(dragStepPx, dragCarry));
+    wheel.style.setProperty("--bulk-fill-offset", `${limitedOffset}px`);
+  };
 
   wheel.addEventListener("wheel", (event) => {
     event.preventDefault();
@@ -1653,6 +1693,8 @@ function bindBulkFillWheel(wheel) {
     dragCarry = 0;
     dragDistance = 0;
     suppressClick = false;
+    wheel.classList.add("dragging");
+    applyDragOffset();
     wheel.setPointerCapture?.(event.pointerId);
   });
 
@@ -1665,12 +1707,11 @@ function bindBulkFillWheel(wheel) {
     const steps = dragCarry > 0
       ? Math.floor(dragCarry / dragStepPx)
       : Math.ceil(dragCarry / dragStepPx);
-    if (!steps) {
-      pointerY = event.clientY;
-      return;
+    if (steps) {
+      stepBulkFillField(wheel.dataset.bulkFillWheel, steps);
+      dragCarry -= steps * dragStepPx;
     }
-    stepBulkFillField(wheel.dataset.bulkFillWheel, steps);
-    dragCarry -= steps * dragStepPx;
+    applyDragOffset();
     pointerY = event.clientY;
   });
 
@@ -1678,6 +1719,8 @@ function bindBulkFillWheel(wheel) {
     if (pointerY == null) return;
     pointerY = null;
     dragCarry = 0;
+    wheel.classList.remove("dragging");
+    applyDragOffset();
     if (wheel.hasPointerCapture?.(event.pointerId)) {
       wheel.releasePointerCapture(event.pointerId);
     }
@@ -1783,11 +1826,11 @@ async function logTransition(key) {
 
 async function postMutationFeedback(key) {
   undoVisible = true;
+  const sourceKey = sourceAyahKeyForMutation(key);
+  refreshVisibleAyahMarkerPresentation(sourceKey);
   await saveState();
   render();
-  const selector = key.includes("|")
-    ? `[data-ayah="${CSS.escape(key.split("|")[1])}"]`
-    : `[data-ayah="${CSS.escape(key)}"]`;
+  const selector = `[data-ayah="${CSS.escape(sourceKey)}"]`;
   const marker = app.querySelector(selector);
   const count = key.includes("|") ? getTransitionCount(key) : getRepetitionCount(key);
   if (marker) {
@@ -1797,6 +1840,51 @@ async function postMutationFeedback(key) {
   }
   playCountIncreaseSound();
   if (navigator.vibrate && state.settings.vibration !== false) navigator.vibrate(20);
+}
+
+function sourceAyahKeyForMutation(key) {
+  return key.includes("|") ? key.split("|")[1] : key;
+}
+
+function refreshVisibleAyahMarkerPresentation(key) {
+  const marker = app.querySelector(`.page-slot.current [data-ayah="${CSS.escape(key)}"]`);
+  if (!marker) return null;
+  const transition = resolveOutgoingTransition(key, metadata);
+  const ringState = buildRepetitionRingState({
+    repetitionCount: getRepetitionCount(key),
+    transitionCount: transition ? getTransitionCount(transition.key) : null,
+    repetitionThresholds: state.settings.repetitionThresholds,
+    transitionCountThresholds: state.settings.transitionCountThresholds
+  });
+  marker.classList.remove(
+    "empty",
+    "weak",
+    "building",
+    "strong",
+    "mastered",
+    "transition-count-empty",
+    "transition-count-weak",
+    "transition-count-building",
+    "transition-count-strong",
+    "transition-count-mastered",
+    "fully-mastered"
+  );
+  marker.classList.add(ringState.repetitionCountLevel);
+  if (ringState.hasTransitionRing) marker.classList.add(`transition-count-${ringState.transitionCountLevel}`);
+  if (ringState.isFullyMastered) marker.classList.add("fully-mastered");
+  marker.style.setProperty("--count-color", ringState.repetitionCountColor);
+  marker.style.setProperty("--count-ink", ringState.repetitionCountInkColor);
+  if (ringState.hasTransitionRing) {
+    marker.style.setProperty("--transition-progress", `${ringState.transitionProgressPercent}%`);
+    marker.style.setProperty("--transition-clip", `${(100 - ringState.transitionProgressPercent) / 2}%`);
+    marker.style.setProperty("--transition-color", ringState.transitionCountColor);
+  }
+  marker.setAttribute("aria-label", buildRepetitionAriaLabel({
+    ayahLabel: labelAyah(key),
+    repetitionCountLevel: ringState.repetitionCountLevel,
+    transitionCountLevel: ringState.transitionCountLevel
+  }));
+  return marker;
 }
 
 function restartAyahPulse(marker) {

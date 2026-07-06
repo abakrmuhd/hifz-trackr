@@ -73,10 +73,15 @@ test("renderQcf4Page omits interactive ayah attrs for inert pages", () => {
   const html = renderQcf4Page(page, {
     inert: true,
     buildAyahAttrs: (key) => `data-ayah="${key}"`,
+    buildAyahMarkerAttrs: (key) => `data-ayah="${key}" role="button"`,
+    buildAyahMarkerStyle: () => "--transition-color: #abda1a; --transition-progress: 25%",
     buildGroupClass: () => "ayah-group"
   });
 
   assert.doesNotMatch(html, /data-ayah="1:1"/);
+  assert.doesNotMatch(html, /role="button"/);
+  assert.match(html, /--transition-color: #abda1a/);
+  assert.match(html, /--transition-progress: 25%/);
 });
 
 test("renderQcf4Page can mark a full ayah group as bookmarked", () => {
@@ -136,7 +141,12 @@ test("styles define Muhaffidh-like QCF4 page metrics", () => {
   assert.match(styles, /\.ayah-chars\s*\{[\s\S]*line-height:\s*var\(--qcf-line-height\)/);
   assert.match(styles, /--mushaf-page-content-height:\s*min\(726px,\s*138\.93vw\)/);
   assert.match(styles, /\.ayah-chars\s+\.line\s*\{[\s\S]*height:\s*var\(--qcf-line-height\)/);
-  assert.match(styles, /\.qcf4-slot\s*\{[\s\S]*overflow:\s*visible/);
+  assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*overflow-y:\s*auto/);
+  assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*scrollbar-width:\s*none/);
+  assert.match(styles, /\.page-slot\.current::-webkit-scrollbar\s*\{[\s\S]*display:\s*none/);
+  assert.match(styles, /\.qcf4-slot\s*\{[\s\S]*place-items:\s*center/);
+  assert.match(styles, /\.qcf4-slot\s+\.page-content\s*\{[\s\S]*height:\s*auto[\s\S]*align-items:\s*safe center/);
+  assert.doesNotMatch(styles, /\.page-slot\.current\.qcf4-slot\s+\.page-content/);
   assert.match(styles, /\.page-shell\s*\{[\s\S]*cursor:\s*grab/);
   assert.match(styles, /\.page-slot\.current\s+\.ayah-marker\[data-ayah\][\s\S]*cursor:\s*pointer/);
   assert.match(styles, /\.page-shell\.dragging\s+\.ayah-marker\[data-ayah\][\s\S]*cursor:\s*grabbing/);

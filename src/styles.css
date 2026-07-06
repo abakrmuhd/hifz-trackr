@@ -803,18 +803,21 @@ small {
   position: relative;
   container-type: inline-size;
   overflow: hidden;
-  margin-top: 8px;
+  margin-top: 0;
   --mushaf-row-height: 2.13rem;
   --mushaf-page-content-height: min(726px, 138.93vw);
+  --reader-page-available-height: max(430px, calc(100dvh - 82px));
+  --page-shell-y-padding: 18px;
   --page-chrome-left: 18px;
   --page-chrome-right: 18px;
   flex: 1 1 auto;
   min-height: 0;
   height: min(
     max(clamp(430px, 62vh, 620px), calc(var(--mushaf-page-content-height) + 38px)),
+    var(--reader-page-available-height),
     100%
   );
-  padding: 18px 15px;
+  padding: var(--page-shell-y-padding) 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -827,26 +830,14 @@ small {
   margin-inline: -12px;
 }
 
-.page-shell.odd {
-  padding-left: 0;
-  --page-chrome-right: 40px;
-}
-
-.page-shell.even {
-  padding-right: 0;
-  --page-chrome-left: 40px;
-}
-
 .page-chrome {
-  position: absolute;
-  left: var(--page-chrome-left);
-  right: var(--page-chrome-right);
-  z-index: 4;
+  box-sizing: border-box;
+  width: 100%;
+  padding-inline: var(--page-chrome-left) var(--page-chrome-right);
   pointer-events: none;
 }
 
 .page-top-meta {
-  top: 8px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
@@ -876,7 +867,6 @@ small {
 }
 
 .page-bottom-wrap {
-  bottom: 8px;
   display: flex;
   justify-content: center;
 }
@@ -892,7 +882,8 @@ small {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 300%;
-  height: 100%;
+  height: calc(100% + (var(--page-shell-y-padding) * 2));
+  margin-block: calc(var(--page-shell-y-padding) * -1);
   min-height: 0;
   transform: translateX(calc(-33.333333% + var(--track-offset, 0px)));
   will-change: transform;
@@ -909,8 +900,20 @@ small {
 .page-slot {
   position: relative;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
+  padding-block: var(--page-shell-y-padding);
   overflow: visible;
+}
+
+.page-slot.odd {
+  --page-chrome-right: 40px;
+  padding-right: 18px;
+}
+
+.page-slot.even {
+  --page-chrome-left: 40px;
+  padding-left: 18px;
 }
 
 .page-slot.previous,
@@ -927,8 +930,16 @@ small {
 }
 
 .page-slot.current {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   pointer-events: auto;
+  scrollbar-width: none;
   visibility: visible;
+}
+
+.page-slot.current::-webkit-scrollbar {
+  display: none;
 }
 
 .page-slot.empty {
@@ -938,6 +949,12 @@ small {
 .qcf4-slot {
   place-items: center;
   overflow: visible;
+}
+
+.qcf4-slot .page-content {
+  min-height: 100%;
+  height: auto;
+  align-items: safe center;
 }
 
 .page-shell.dragging {
@@ -969,8 +986,8 @@ small {
   content: "";
   position: absolute;
   z-index: 2;
-  top: -18px;
-  bottom: -18px;
+  top: 0;
+  bottom: 0;
   width: 18px;
   pointer-events: none;
   opacity: .58;
@@ -979,9 +996,12 @@ small {
     linear-gradient(90deg, transparent 3px, rgba(171, 218, 26, .24) 3px 4px, transparent 4px 8px, rgba(171, 218, 26, .18) 8px 9px, transparent 9px 13px, rgba(171, 218, 26, .12) 13px 14px, transparent 14px);
 }
 
-.page-slot.odd::after { right: -15px; }
+.page-slot.odd::after {
+  right: 0;
+}
+
 .page-slot.even::before {
-  left: -15px;
+  left: 0;
   transform: scaleX(-1);
 }
 
@@ -1358,8 +1378,8 @@ mushaf-page-inner {
   100% {
     clip-path: inset(0 0);
     opacity: 1;
-    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 34%, transparent) 18%, color-mix(in srgb, var(--text) 34%, transparent) 82%, transparent);
-    box-shadow: 0 0 0 color-mix(in srgb, #abda1a 0%, transparent);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--transition-color) 34%, transparent) 18%, color-mix(in srgb, var(--transition-color) 34%, transparent) 82%, transparent);
+    box-shadow: 0 0 0 color-mix(in srgb, var(--transition-color) 0%, transparent);
   }
 }
 
@@ -1400,33 +1420,6 @@ mushaf-page-inner {
   }
 }
 
-.reader-bottom-nav {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.reader-bottom-btn {
-  min-height: 42px;
-  border: 1px solid rgba(171, 218, 26, .36);
-  border-radius: 12px;
-  background: rgba(171, 218, 26, .08);
-  color: var(--text);
-  font-weight: 800;
-}
-
-.reader-bottom-btn:not(:disabled):hover,
-.reader-bottom-btn:not(:disabled):focus-visible {
-  border-color: rgba(171, 218, 26, .74);
-  background: rgba(171, 218, 26, .16);
-}
-
-.reader-bottom-btn:disabled {
-  cursor: not-allowed;
-  opacity: .38;
-}
-
 .floating-undo {
   position: fixed;
   inset-inline-start: max(22px, calc((100vw - 460px) / 2 + 22px));
@@ -1454,26 +1447,10 @@ mushaf-page-inner {
 }
 
 .reader-bulk-fill-btn {
-  position: fixed;
-  inset-inline-end: max(22px, calc((100vw - 460px) / 2 + 22px));
-  bottom: 82px;
-  display: inline-grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border: 0;
-  border-radius: 999px;
-  background: #abda1a;
-  color: #163200;
   font-size: 1.5rem;
   font-weight: 900;
   line-height: 1;
-  box-shadow: 0 18px 32px rgba(0, 0, 0, .3);
-  z-index: 6;
-}
-
-.reader-bulk-fill-btn.with-review {
-  bottom: 148px;
+  padding-bottom: 1px;
 }
 
 .review-bar {
@@ -1666,10 +1643,8 @@ mushaf-page-inner {
 }
 
 .bulk-fill-wheel {
+  --bulk-fill-offset: 0px;
   position: relative;
-  display: grid;
-  grid-template-rows: 22px 30px 22px;
-  align-items: stretch;
   width: 86px;
   min-height: 74px;
   overflow: hidden;
@@ -1680,6 +1655,20 @@ mushaf-page-inner {
   user-select: none;
   touch-action: none;
   cursor: ns-resize;
+}
+
+.bulk-fill-wheel-track {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 22px 30px 22px;
+  align-items: stretch;
+  transform: translateY(var(--bulk-fill-offset));
+  transition: transform 140ms ease;
+}
+
+.bulk-fill-wheel.dragging .bulk-fill-wheel-track {
+  transition: none;
 }
 
 .bulk-fill-wheel:focus-visible {
