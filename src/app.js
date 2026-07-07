@@ -128,6 +128,7 @@ let review = null;
 let swipeStart = null;
 let suppressClickUntil = 0;
 let lastPointerAyahTap = { key: null, until: 0 };
+let selectedAyahTextKey = null;
 let pageNavigationInFlight = false;
 let trackState = {
   direction: null,
@@ -285,6 +286,7 @@ async function fetchJson(path) {
 
 async function openPage(page, options = {}) {
   route = { screen: "reading", tab: route.tab, page: clampPage(page), target: options.target || null };
+  selectedAyahTextKey = null;
   const nextTrack = await loadTrackPages(route.page);
   trackPages = nextTrack.data;
   trackState = { direction: null, dragging: false, offset: 0 };
@@ -298,6 +300,7 @@ async function openPage(page, options = {}) {
 
 async function goHome(tab = route.tab || "progress") {
   route = { screen: "home", tab, page: route.page, target: null };
+  selectedAyahTextKey = null;
   rememberCurrentRoute();
   await saveState();
   render();
@@ -781,10 +784,15 @@ function renderAyahMarkGlyph(value) {
   return `<span class="ayah-mark-glyph"><span class="ayah-mark-glyph-base">${value}</span><span class="ayah-mark-glyph-shine" aria-hidden="true">${value}</span></span>`;
 }
 
+function selectAyahText(key) {
+  if (!key || selectedAyahTextKey === key) return;
+  selectedAyahTextKey = key;
+  render();
+}
+
 function buildQcf4AyahGroupAttrs(key, { pageNumber }) {
   return `data-ayah-detail="${escapeHtml(key)}" data-page="${pageNumber}"`;
 }
-
 function buildQcf4AyahMarkerAttrs(key, { pageNumber }) {
   const ariaLabel = buildRepetitionAriaLabel({
     ayahLabel: labelAyah(key),
@@ -836,7 +844,8 @@ function buildQcf4AyahMarkerClass(key, activeTarget) {
 function buildQcf4AyahGroupClass(key) {
   return [
     "ayah-group",
-    state.ayahBookmarks.some((item) => item.key === key) ? "bookmarked-ayah" : ""
+    state.ayahBookmarks.some((item) => item.key === key) ? "bookmarked-ayah" : "",
+    selectedAyahTextKey === key ? "selected-ayah-text" : ""
   ].filter(Boolean).join(" ");
 }
 
@@ -1225,7 +1234,26 @@ function bindScreenEvents() {
   app.querySelectorAll(".page-slot.current .ayah-marker[data-ayah], .page-slot.current button.ayah-mark[data-ayah]").forEach((button) => {
     button.addEventListener("click", (event) => {
       if (event.button !== 0) return;
-      if (lastPointerAyahTap.key === button.dataset.ayah && Date.now() < lastPointerAyahTap.until) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.detail !== 0) return;
+      handleAyahTap(button.dataset.ayah, button);
+    });
+    button.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    button.addEventListener("pointerup", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      handleAyahTap(button.dataset.ayah, button);
+    });
+    button.addEventListener("keydown", (event) => {
+      if (!["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
       handleAyahTap(button.dataset.ayah, button);
     });
     bindLongPress(button, () => openAyahDetail(button));
@@ -1237,9 +1265,26 @@ function bindScreenEvents() {
   });
 
   app.querySelectorAll(".page-slot.current .ayah-group[data-ayah-detail]").forEach((group) => {
+    let textTapStart = null;
+    group.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      if (event.target.closest?.(".ayah-marker[data-ayah], button.ayah-mark[data-ayah]")) return;
+      textTapStart = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+      if (event.pointerType !== "mouse" && event.cancelable) event.preventDefault();
+    });
+    group.addEventListener("pointerup", (event) => {
+      if (!textTapStart || event.pointerId !== textTapStart.pointerId) return;
+      const moved = Math.abs(event.clientX - textTapStart.x) > SWIPE_DRAG_START || Math.abs(event.clientY - textTapStart.y) > SWIPE_DRAG_START;
+      textTapStart = null;
+      if (moved) return;
+      if (event.cancelable) event.preventDefault();
+      setTimeout(() => selectAyahText(group.dataset.ayahDetail), 0);
+    });
+    group.addEventListener("pointercancel", () => {
+      textTapStart = null;
+    });
     bindLongPress(group, () => openAyahDetail(group));
   });
-
   app.querySelectorAll(".page-slot.current button.transition-mark[data-transition]").forEach((button) => {
     bindLongPress(button, () => {
       cancelPageGesture();
@@ -1319,6 +1364,10 @@ function bindScreenEvents() {
       const ayahMarker = !didDrag && axis !== "vertical" ? resolveAyahMarkerAtPoint(event.clientX, event.clientY) : null;
       if (ayahMarker) {
         lastPointerAyahTap = { key: ayahMarker.dataset.ayah, until: Date.now() + 500 };
+        if (event.target.closest?.(".ayah-marker[data-ayah], button.ayah-mark[data-ayah]")) {
+          resetTrackState(true);
+          return;
+        }
         handleAyahTap(ayahMarker.dataset.ayah, ayahMarker);
       }
       if (didDrag) suppressClickUntil = Date.now() + 350;
@@ -1514,6 +1563,7 @@ async function moveTrack(direction, options = {}) {
     }
 
     route = { screen: "reading", tab: route.tab, page: targetPage, target: null };
+    selectedAyahTextKey = null;
     const loaded = await loadTrackPages(targetPage);
     trackPages = loaded.data;
     trackState = { direction: null, dragging: false, offset: 0 };
@@ -1796,7 +1846,6 @@ function selectBulkFillPicker(picker, value) {
 }
 
 function handleAyahTap(key, marker = null) {
-  if (marker) playAyahTapFeedback(marker);
   prepareCountIncreaseSound();
   if (pendingTap?.key === key) {
     clearTimeout(pendingTap.timer);

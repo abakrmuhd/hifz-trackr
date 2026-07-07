@@ -1093,6 +1093,19 @@ mushaf-page-inner {
 
 .ayah-chars .ayah-group {
   unicode-bidi: bidi-override;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.ayah-chars .ayah-group.selected-ayah-text {
+  border-radius: .2em;
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--text) 18%, transparent),
+      color-mix(in srgb, var(--text) 18%, transparent)
+    ) center / 100% calc(var(--qcf-line-height) * .75) no-repeat;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .ayah-chars .ayah-group.bookmarked-ayah {
@@ -1103,6 +1116,18 @@ mushaf-page-inner {
   ) center / 100% var(--qcf-line-height) no-repeat;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
+}
+
+.ayah-chars .ayah-group.bookmarked-ayah.selected-ayah-text {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--text) 18%, transparent),
+      color-mix(in srgb, var(--text) 18%, transparent)
+    ) center / 100% calc(var(--qcf-line-height) * .75) no-repeat,
+    linear-gradient(
+      color-mix(in srgb, var(--mastered) 18%, transparent),
+      color-mix(in srgb, var(--mastered) 18%, transparent)
+    ) center / 100% var(--qcf-line-height) no-repeat;
 }
 
 .ayah-chars .space {
@@ -1121,6 +1146,9 @@ mushaf-page-inner {
   font-weight: inherit;
   line-height: inherit;
   color: var(--count-color, inherit);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .ayah-chars .ayah-marker.ayah-mark::before,
@@ -1223,6 +1251,10 @@ mushaf-page-inner {
   font-weight: 950;
   line-height: 1;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
   isolation: isolate;
 }
 

@@ -15,8 +15,9 @@ test("mutation feedback spawns a floating repetition count", () => {
   assert.match(styles, /\.repetition-count-pop/);
 });
 
-test("ayah marker gives immediate tap feedback before count commit", () => {
-  assert.match(appSource, /handleAyahTap\(button\.dataset\.ayah,\s*button\)/);
+test("ayah marker tap feedback is driven by the committed mutation", () => {
+  assert.match(appSource, /button\.addEventListener\("pointerup",\s*\(event\) => \{[\s\S]*?handleAyahTap\(button\.dataset\.ayah,\s*button\)/);
+  assert.doesNotMatch(appSource, /function handleAyahTap\(key,\s*marker = null\)\s*\{\s*if \(marker\) playAyahTapFeedback\(marker\)/);
   assert.match(appSource, /function playAyahTapFeedback\(marker\)/);
   assert.match(appSource, /marker\.animate\(/);
 });
@@ -31,10 +32,11 @@ test("page shell pointerup routes non-drag ayah taps to feedback", () => {
   assert.match(appSource, /resolveAyahMarkerAtPoint\(event\.clientX,\s*event\.clientY\)/);
   assert.match(appSource, /lastPointerAyahTap/);
   assert.match(appSource, /handleAyahTap\(ayahMarker\.dataset\.ayah,\s*ayahMarker\)/);
+  assert.match(appSource, /if \(event\.target\.closest\?\.\("\.ayah-marker\[data-ayah\], button\.ayah-mark\[data-ayah\]"\)\) \{/);
 });
 
 test("ayah count tracking ignores non-primary pointer buttons", () => {
-  assert.match(appSource, /button\.addEventListener\("click",\s*\(event\) => \{[\s\S]*?if \(event\.button !== 0\) return;[\s\S]*?handleAyahTap\(button\.dataset\.ayah,\s*button\)/);
+  assert.match(appSource, /button\.addEventListener\("pointerup",\s*\(event\) => \{[\s\S]*?if \(event\.button !== 0\) return;[\s\S]*?handleAyahTap\(button\.dataset\.ayah,\s*button\)/);
   assert.match(appSource, /pageShell\.addEventListener\("pointerdown",\s*\(event\) => \{[\s\S]*?if \(event\.button !== 0\) return;[\s\S]*?swipeStart = \{/);
 });
 
@@ -45,12 +47,21 @@ test("long press detail modal cancels active page swipe gesture", () => {
   assert.match(appSource, /button\.dataset\.ayah \|\| button\.dataset\.ayahDetail/);
 });
 
-test("long press ayah text opens the same detail modal without making text tappable", () => {
+test("single tap ayah text highlights text without incrementing counts", () => {
   const ayahTextBinding = appSource.match(/app\.querySelectorAll\("\.page-slot\.current \.ayah-group\[data-ayah-detail\]"\)\.forEach\(\(group\) => \{[\s\S]*?\n  \}\);/)?.[0] || "";
   assert.match(appSource, /function buildQcf4AyahGroupAttrs\(key,\s*\{ pageNumber \}\)\s*\{[\s\S]*data-ayah-detail=/);
   assert.match(appSource, /buildAyahAttrs:\s*\(key\) => buildQcf4AyahGroupAttrs\(key,\s*\{ pageNumber \}\)/);
+  assert.match(appSource, /function selectAyahText\(key\)\s*\{[\s\S]*selectedAyahTextKey = key;[\s\S]*render\(\);/);
+  assert.match(appSource, /selectedAyahTextKey === key \? "selected-ayah-text" : ""/);
+  assert.match(appSource, /selectedAyahTextKey = null;[\s\S]*loadTrackPages\(route\.page\)/);
+  assert.match(appSource, /selectedAyahTextKey = null;[\s\S]*rememberCurrentRoute\(\)/);
+  assert.match(ayahTextBinding, /group\.addEventListener\("pointerup",\s*\(event\) => \{[\s\S]*setTimeout\(\(\) => selectAyahText\(group\.dataset\.ayahDetail\),\s*0\)/);
+  assert.doesNotMatch(ayahTextBinding, /event\.stopPropagation\(\)/);
   assert.match(ayahTextBinding, /bindLongPress\(group,\s*\(\) => openAyahDetail\(group\)\)/);
   assert.doesNotMatch(ayahTextBinding, /handleAyahTap/);
+  assert.match(styles, /\.ayah-chars\s+\.ayah-group\.selected-ayah-text\s*\{[\s\S]*calc\(var\(--qcf-line-height\) \* \.75\)/);
+  assert.match(styles, /\.ayah-chars\s+\.ayah-group\.bookmarked-ayah\.selected-ayah-text\s*\{/);
+  assert.match(styles, /\.ayah-chars\s+\.ayah-group\s*\{[\s\S]*-webkit-tap-highlight-color:\s*transparent/);
 });
 
 test("detail modal exposes increment buttons beside repetition and transition decrements", () => {
@@ -71,6 +82,12 @@ test("quick ayah taps cancel long press even after page shell captures the point
   assert.match(styles, /\.detail-modal\s*\{[\s\S]*user-select:\s*none[\s\S]*-webkit-user-select:\s*none/);
 });
 
+test("mobile marker taps suppress native text selection rectangles", () => {
+  assert.match(styles, /\.ayah-mark\s*\{[\s\S]*-webkit-user-select:\s*none[\s\S]*-webkit-tap-highlight-color:\s*transparent[\s\S]*-webkit-touch-callout:\s*none/);
+  assert.match(styles, /\.ayah-chars\s+\.ayah-marker\.ayah-mark\s*\{[\s\S]*-webkit-tap-highlight-color:\s*transparent[\s\S]*-webkit-touch-callout:\s*none/);
+  assert.match(appSource, /button\.addEventListener\("pointerdown",\s*\(event\) => \{[\s\S]*event\.preventDefault\(\);[\s\S]*event\.stopPropagation\(\);/);
+});
+
 test("right click ayah number opens the same detail modal as long press", () => {
   assert.match(appSource, /button\.addEventListener\("contextmenu",\s*\(event\) => \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?event\.stopPropagation\(\);[\s\S]*?openAyahDetail\(button\);[\s\S]*?\}\)/);
 });
@@ -79,6 +96,7 @@ test("desktop text selection bypasses page swipe startup", () => {
   assert.match(appSource, /shouldStartTrackGesture/);
   assert.match(appSource, /pointerType:\s*event\.pointerType/);
   assert.match(appSource, /startedOnSelectableText:\s*Boolean\(event\.target\.closest\?\.\("\.mushaf-line"\)\)/);
+  assert.doesNotMatch(appSource, /startedOnSelectableText:\s*Boolean\(event\.target\.closest\?\.\("\.mushaf-line, \.ayah-group\[data-ayah-detail\]"\)\)/);
 });
 
 test("horizontal reader swipes arm after the drag axis locks", () => {

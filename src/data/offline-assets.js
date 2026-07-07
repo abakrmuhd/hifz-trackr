@@ -1,12 +1,12 @@
-export const CACHE_VERSION = "hifz-trackr-v91-mobile-touch-fixes";
+export const CACHE_VERSION = "hifz-trackr-v92-ayah-text-focus";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-07-07-mobile-touch-fixes",
-  "/src/styles.css?v=2026-07-07-mobile-touch-fixes"
+  "/src/app.js?v=2026-07-07-ayah-text-focus",
+  "/src/styles.css?v=2026-07-07-ayah-text-focus"
 ];
 
 export const DATA_ASSETS = [

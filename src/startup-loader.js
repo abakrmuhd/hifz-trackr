@@ -1,7 +1,7 @@
 import { isLocalhostHostname } from "./data/runtime-environment.js";
 
 const app = document.querySelector("#app");
-const STARTUP_ASSET_VERSION = "2026-07-07-mobile-touch-fixes";
+const STARTUP_ASSET_VERSION = "2026-07-07-ayah-text-focus";
 
 function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]);
