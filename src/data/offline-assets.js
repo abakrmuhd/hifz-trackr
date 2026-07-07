@@ -1,4 +1,4 @@
-export const CACHE_VERSION = "hifz-trackr-v101-rounder-undo-icon";
+export const CACHE_VERSION = "hifz-trackr-v104-page-meta-gap";
 
 export const SHELL_ASSETS = [
   "/",
@@ -6,8 +6,8 @@ export const SHELL_ASSETS = [
   "/version.json",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-07-07-rounder-undo-icon",
-  "/src/styles.css?v=2026-07-07-version-subtitle"
+  "/src/app.js?v=2026-07-07-page-meta-gap",
+  "/src/styles.css?v=2026-07-07-page-meta-gap"
 ];
 
 export const DATA_ASSETS = [

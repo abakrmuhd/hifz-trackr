@@ -207,7 +207,9 @@ test("reader moves page metadata into side-line-safe page chrome", () => {
   assert.match(appSource, /class="page-meta-surah"/);
   assert.match(appSource, /class="page-meta-range"/);
   assert.match(appSource, /class="page-meta-juz"/);
-  assert.match(appSource, /class="page-bottom-meta">\$\{page\}<\/div>/);
+  assert.match(appSource, /class="page-chrome page-bottom-meta" aria-hidden="true">\$\{page\}<\/div>/);
+  assert.doesNotMatch(appSource, /page-bottom-wrap/);
+  assert.doesNotMatch(styles, /\.page-bottom-wrap/);
   assert.match(appSource, /formatPageAyahRange\(pageData\.ayahKeys\)/);
   assert.match(appSource, /getPagePrimarySurahName\(pageData\)/);
   assert.doesNotMatch(appSource, /`Page \$\{route\.page\} · \$\{metadata\.pages\[String\(route\.page\)\]\?\.label \|\| ""\}`/);
@@ -216,6 +218,7 @@ test("reader moves page metadata into side-line-safe page chrome", () => {
   assert.match(pageChromeRule, /padding-inline:\s*var\(--page-chrome-left\)\s*var\(--page-chrome-right\)/);
   assert.doesNotMatch(pageChromeRule, /position:\s*absolute/);
   assert.match(styles, /\.page-slot\s*\{[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*row-gap:\s*10px/);
   assert.match(styles, /\.page-slot\.odd\s*\{[\s\S]*--page-chrome-right:\s*40px/);
   assert.match(styles, /\.page-slot\.even\s*\{[\s\S]*--page-chrome-left:\s*40px/);
   assert.match(styles, /\.page-shell\s*\{[\s\S]*--reader-page-available-height:\s*max\(430px,\s*calc\(100dvh - 82px\)\)/);

@@ -873,12 +873,9 @@ small {
   text-align: right;
 }
 
-.page-bottom-wrap {
+.page-bottom-meta {
   display: flex;
   justify-content: center;
-}
-
-.page-bottom-meta {
   color: var(--muted);
   font-size: .8rem;
   font-weight: 900;
@@ -908,6 +905,7 @@ small {
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  row-gap: 10px;
   min-width: 0;
   padding-block: var(--page-shell-y-padding);
   overflow: visible;
@@ -1092,18 +1090,10 @@ mushaf-page-inner {
 }
 
 .ayah-chars .surah-title-line {
-  position: relative;
   box-sizing: border-box;
-  color: var(--mastered);
-}
-
-.ayah-chars .surah-title-line::before {
-  position: absolute;
-  inset: 5px 0;
   border: 1px solid var(--mastered);
   border-radius: 12px;
-  content: "";
-  pointer-events: none;
+  color: var(--mastered);
 }
 
 .ayah-chars .ayah-group {

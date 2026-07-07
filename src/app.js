@@ -558,9 +558,7 @@ function renderPageTopChrome(page) {
 
 function renderPageBottomChrome(page) {
   return `
-    <div class="page-chrome page-bottom-wrap" aria-hidden="true">
-      <div class="page-bottom-meta">${page}</div>
-    </div>
+    <div class="page-chrome page-bottom-meta" aria-hidden="true">${page}</div>
   `;
 }
 

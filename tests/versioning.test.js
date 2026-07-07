@@ -34,7 +34,7 @@ test("settings displays the current app version from version metadata", () => {
 
 test("builds stamp version metadata for main branch runs", () => {
   assert.equal(versionJson.name, "hifz-trackr");
-  assert.equal(versionJson.version, "0.1.0");
+  assert.equal(versionJson.version, "0.1.1");
   assert.equal(versionJson.build, "local");
   assert.match(buildScript, /APP_BUILD_NUMBER/);
   assert.match(buildScript, /APP_GIT_SHA/);

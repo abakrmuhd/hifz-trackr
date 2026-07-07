@@ -8,6 +8,7 @@ All notable changes pushed to `main` should be recorded here.
 
 ## 2026-07-07
 
+- Polished page chrome spacing and reader page-number placement on `main`.
 - Refined ayah text focus and reader taps on `main`.
 
 ## 2026-07-01
