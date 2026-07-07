@@ -100,6 +100,13 @@ test("single tap ayah text highlights text without incrementing counts", () => {
   assert.match(styles, /\.ayah-chars\s+\.ayah-group\s*\{[\s\S]*-webkit-tap-highlight-color:\s*transparent/);
 });
 
+test("same-page reader renders preserve the current scroll position", () => {
+  assert.match(appSource, /function getRenderedReaderPage\(\)\s*\{[\s\S]*querySelector\("\.page-shell"\)\?\.getAttribute\("aria-label"\)/);
+  assert.match(appSource, /const readerScrollTop = route\.screen === "reading" && renderedPage === route\.page[\s\S]*app\.querySelector\("\.page-slot\.current"\)\?\.scrollTop/);
+  assert.match(appSource, /function restoreReaderScroll\(scrollTop\)\s*\{[\s\S]*slot\.scrollTop = Math\.min\(scrollTop,\s*slot\.scrollHeight - slot\.clientHeight\)/);
+  assert.match(appSource, /restoreReaderScroll\(readerScrollTop\);[\s\S]*bindScreenEvents\(\)/);
+});
+
 test("detail modal exposes increment buttons beside repetition and transition decrements", () => {
   assert.match(appSource, /data-action="decrement-detail"[\s\S]*aria-label="Decrease transition count">-<\/button>[\s\S]*data-action="increment-detail"[\s\S]*aria-label="Increase transition count">\+<\/button>/);
   assert.match(appSource, /data-action="decrement-transition-detail"[\s\S]*aria-label="Decrease transition count">-<\/button>[\s\S]*data-action="increment-transition-detail"[\s\S]*aria-label="Increase transition count">\+<\/button>/);
@@ -146,6 +153,7 @@ test("horizontal reader swipes arm after the drag axis locks", () => {
 test("vertical reader drags scroll the current page instead of turning pages", () => {
   assert.match(appSource, /if \(swipeStart\.axis === "vertical"\) \{/);
   assert.match(appSource, /currentSlot\.scrollTop = swipeStart\.scrollTop - dy/);
+  assert.doesNotMatch(appSource, /currentSlot && swipeStart\.pointerType === "mouse"/);
   assert.match(appSource, /axis === "horizontal" && trackState\.direction && shouldCommitTrackMove/);
   assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*overflow-y:\s*auto/);
   assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*overscroll-behavior:\s*contain/);
@@ -217,8 +225,11 @@ test("reader moves page metadata into side-line-safe page chrome", () => {
   assert.match(pageChromeRule, /pointer-events:\s*none/);
   assert.match(pageChromeRule, /padding-inline:\s*var\(--page-chrome-left\)\s*var\(--page-chrome-right\)/);
   assert.doesNotMatch(pageChromeRule, /position:\s*absolute/);
-  assert.match(styles, /\.page-slot\s*\{[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*box-sizing:\s*border-box/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*grid-template-rows:\s*auto auto auto/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*align-content:\s*safe center/);
   assert.match(styles, /\.page-slot\s*\{[\s\S]*row-gap:\s*10px/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*min-height:\s*0;[\s\S]*height:\s*100%;[\s\S]*max-height:\s*100%/);
   assert.match(styles, /\.page-slot\.odd\s*\{[\s\S]*--page-chrome-right:\s*40px/);
   assert.match(styles, /\.page-slot\.even\s*\{[\s\S]*--page-chrome-left:\s*40px/);
   assert.match(styles, /\.page-shell\s*\{[\s\S]*--reader-page-available-height:\s*max\(430px,\s*calc\(100dvh - 82px\)\)/);

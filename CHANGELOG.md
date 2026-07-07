@@ -6,6 +6,10 @@ All notable changes pushed to `main` should be recorded here.
 
 - Track changes here before the next `main` push.
 
+## 2026-07-08
+
+- Preserved reader scroll position across same-page renders and refined page slot centering on `main`.
+
 ## 2026-07-07
 
 - Polished page chrome spacing and reader page-number placement on `main`.

@@ -335,14 +335,31 @@ async function goHome(tab = route.tab || "progress") {
 }
 
 function render() {
+  const renderedPage = getRenderedReaderPage();
+  const readerScrollTop = route.screen === "reading" && renderedPage === route.page
+    ? app.querySelector(".page-slot.current")?.scrollTop
+    : null;
   document.documentElement.dataset.theme = state.settings.theme;
   app.innerHTML = route.screen === "reading" ? renderReading() : renderHome();
   if (settingsOpen) app.insertAdjacentHTML("beforeend", renderSettings());
   if (helpOpen) app.insertAdjacentHTML("beforeend", renderHelpModal());
   if (bulkFillOpen) app.insertAdjacentHTML("beforeend", renderBulkFillModal());
   if (detailTarget) app.insertAdjacentHTML("beforeend", renderDetails());
+  restoreReaderScroll(readerScrollTop);
   bindScreenEvents();
   animatePageGridOnRender = false;
+}
+
+function getRenderedReaderPage() {
+  const label = app.querySelector(".page-shell")?.getAttribute("aria-label") || "";
+  return Number(label.match(/\d+/)?.[0]) || null;
+}
+
+function restoreReaderScroll(scrollTop) {
+  if (!Number.isFinite(scrollTop) || scrollTop <= 0) return;
+  const slot = app.querySelector(".page-slot.current");
+  if (!slot) return;
+  slot.scrollTop = Math.min(scrollTop, slot.scrollHeight - slot.clientHeight);
 }
 
 function renderHome() {
@@ -1397,7 +1414,7 @@ function bindScreenEvents() {
       if (swipeStart.axis === "vertical") {
         swipeStart.dragging = true;
         const currentSlot = app.querySelector(".page-slot.current");
-        if (currentSlot && swipeStart.pointerType === "mouse") {
+        if (currentSlot) {
           currentSlot.scrollTop = swipeStart.scrollTop - dy;
         }
         return;

@@ -145,7 +145,11 @@ test("styles define Muhaffidh-like QCF4 page metrics", () => {
   assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*scrollbar-width:\s*none/);
   assert.match(styles, /\.page-slot\.current::-webkit-scrollbar\s*\{[\s\S]*display:\s*none/);
   assert.match(styles, /\.qcf4-slot\s*\{[\s\S]*place-items:\s*center/);
-  assert.match(styles, /\.qcf4-slot\s+\.page-content\s*\{[\s\S]*height:\s*auto[\s\S]*align-items:\s*safe center/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*box-sizing:\s*border-box/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*grid-template-rows:\s*auto auto auto/);
+  assert.match(styles, /\.page-slot\s*\{[\s\S]*align-content:\s*safe center/);
+  assert.match(styles, /\.qcf4-slot\s+\.page-content\s*\{[\s\S]*min-height:\s*var\(--mushaf-page-content-height\)[\s\S]*height:\s*auto[\s\S]*align-items:\s*safe center/);
+  assert.doesNotMatch(styles, /\.qcf4-slot\s+\.page-content\s*\{[^}]*height:\s*100%/);
   assert.doesNotMatch(styles, /\.page-slot\.current\.qcf4-slot\s+\.page-content/);
   assert.match(styles, /\.page-shell\s*\{[\s\S]*cursor:\s*grab/);
   assert.match(styles, /\.page-slot\.current\s+\.ayah-marker\[data-ayah\][\s\S]*cursor:\s*pointer/);
