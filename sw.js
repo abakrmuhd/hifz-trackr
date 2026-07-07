@@ -22,7 +22,13 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   const shouldRefreshFirst = url.origin === self.location.origin
-    && (url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/sw.js" || url.pathname.startsWith("/src/"));
+    && (
+      url.pathname === "/"
+      || url.pathname === "/index.html"
+      || url.pathname === "/version.json"
+      || url.pathname === "/sw.js"
+      || url.pathname.startsWith("/src/")
+    );
 
   if (shouldRefreshFirst) {
     event.respondWith(

@@ -118,7 +118,7 @@ test("reading page exposes a bulk-fill action button and modal wiring", () => {
   assert.match(appSource, /function clampBulkFillAyah\(/);
   assert.match(appSource, /data-bulk-fill-modal/);
   assert.match(appSource, /Fill Repetition & Transition Count/);
-  assert.match(appSource, /Use this to fill repetition and transition counts for a range of ayahs after practice done outside the app\./);
+  assert.match(appSource, /Use this to fill repetition and transition counts for a range of ayahs after practice done without active use of the app\./);
   assert.match(appSource, /function renderBulkFillWheel\(/);
   assert.match(appSource, /function renderBulkFillPickerMenu\(/);
   assert.match(appSource, /function stepBulkFillField\(/);
@@ -157,9 +157,10 @@ test("reading page exposes a bulk-fill action button and modal wiring", () => {
 
 test("bulk-fill button styling matches the reader header action buttons", () => {
   assert.match(stylesSource, /\.reader-bulk-fill-btn/);
-  assert.match(appSource, /<div class="top-actions">[\s\S]*reader-bulk-fill-btn[\s\S]*bookmark-btn/);
+  assert.match(appSource, /<div class="top-actions">[\s\S]*undo-btn[\s\S]*reader-bulk-fill-btn[\s\S]*bookmark-btn/);
   assert.match(stylesSource, /font-size:\s*1\.5rem/);
   assert.match(stylesSource, /font-weight:\s*900/);
+  assert.match(stylesSource, /\.bulk-fill-picker-wrap\s*\{[\s\S]*width:\s*196px/);
   assert.match(stylesSource, /\.bulk-fill-wheel/);
   assert.match(stylesSource, /--bulk-fill-offset:\s*0px/);
   assert.match(stylesSource, /\.bulk-fill-wheel-track/);
@@ -169,4 +170,18 @@ test("bulk-fill button styling matches the reader header action buttons", () => 
   assert.match(stylesSource, /\.bulk-fill-wheel-hit[\s\S]*pointer-events:\s*none/);
   assert.match(stylesSource, /\.bulk-fill-picker-menu/);
   assert.match(stylesSource, /\.bulk-fill-picker-option\.selected/);
+});
+
+test("settings count threshold fields use the bulk-fill wheel interaction", () => {
+  assert.match(appSource, /renderThresholdSettings\("Repetition count",\s*"repetitionThresholds",\s*s\.repetitionThresholds\)/);
+  assert.match(appSource, /renderThresholdSettings\("Transition count",\s*"transitionCountThresholds",\s*s\.transitionCountThresholds\)/);
+  assert.match(appSource, /renderThresholdWheel\(\{[\s\S]*profileKey,[\s\S]*thresholdKey:\s*"weakMax"/);
+  assert.match(appSource, /data-threshold-profile="\$\{profileKey\}"/);
+  assert.match(appSource, /data-threshold-key="\$\{thresholdKey\}"/);
+  assert.match(appSource, /app\.querySelectorAll\("\[data-threshold-profile\]\[data-bulk-fill-wheel\]"\)\.forEach\(\(wheel\) => bindThresholdWheel\(wheel\)\)/);
+  assert.match(appSource, /function getThresholdWheelBounds\(profile,\s*thresholdKey\)/);
+  assert.match(appSource, /function stepThresholdField\(profileKey,\s*thresholdKey,\s*direction\)/);
+  assert.match(appSource, /await saveState\(\);[\s\S]*syncThresholdWheel\(profileKey,\s*thresholdKey\)/);
+  assert.match(stylesSource, /\.threshold-field \.bulk-fill-wheel\s*\{[\s\S]*height:\s*84px[\s\S]*min-height:\s*84px/);
+  assert.match(stylesSource, /\.threshold-field \.bulk-fill-wheel-track\s*\{[\s\S]*grid-template-rows:\s*repeat\(3,\s*28px\)/);
 });

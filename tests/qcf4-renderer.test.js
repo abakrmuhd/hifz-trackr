@@ -157,9 +157,12 @@ test("styles define Muhaffidh-like QCF4 page metrics", () => {
   const qcfTransitionCueRule = styles.match(/\.ayah-chars\s+\.ayah-marker\.ayah-mark::before,\s*\.ayah-chars\s+\.ayah-marker\.ayah-mark::after\s*\{[^}]*\}/)?.[0] || "";
   assert.match(qcfTransitionCueRule, /transform:\s*translateX\(var\(--ayah-marker-visual-offset\)\)/);
   const surahTitleLineRule = styles.match(/\.ayah-chars\s+\.surah-title-line\s*\{[^}]*\}/)?.[0] || "";
-  assert.match(surahTitleLineRule, /border:\s*1px\s+solid\s+var\(--mastered\)/);
-  assert.match(surahTitleLineRule, /border-radius:\s*12px/);
+  const surahTitleBorderRule = styles.match(/\.ayah-chars\s+\.surah-title-line::before\s*\{[^}]*\}/)?.[0] || "";
+  assert.match(surahTitleLineRule, /position:\s*relative/);
   assert.match(surahTitleLineRule, /color:\s*var\(--mastered\)/);
+  assert.match(surahTitleBorderRule, /inset:\s*5px 0/);
+  assert.match(surahTitleBorderRule, /border:\s*1px\s+solid\s+var\(--mastered\)/);
+  assert.match(surahTitleBorderRule, /border-radius:\s*12px/);
   const bookmarkedAyahRule = styles.match(/\.ayah-chars\s+\.ayah-group\.bookmarked-ayah\s*\{[^}]*\}/)?.[0] || "";
   assert.match(bookmarkedAyahRule, /background:\s*linear-gradient\(\s*color-mix\(in srgb,\s*var\(--mastered\) 18%,\s*transparent\),\s*color-mix\(in srgb,\s*var\(--mastered\) 18%,\s*transparent\)\s*\)\s*center\s*\/\s*100%\s*var\(--qcf-line-height\)\s*no-repeat/);
   assert.match(bookmarkedAyahRule, /box-decoration-break:\s*clone/);

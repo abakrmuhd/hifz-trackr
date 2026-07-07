@@ -15,6 +15,29 @@ test("mutation feedback spawns a floating repetition count", () => {
   assert.match(styles, /\.repetition-count-pop/);
 });
 
+test("reader undo is persistent in the header and keeps a ten event stack", () => {
+  assert.match(appSource, /const UNDO_HISTORY_LIMIT = 10/);
+  assert.match(appSource, /<button class="icon-btn undo-btn" data-action="undo" aria-label="Undo last count" \$\{undoDisabled\}>\$\{icons\.undo\}<\/button>\s*<button class="icon-btn reader-bulk-fill-btn"/);
+  assert.match(appSource, /const undoDisabled = hasUndoHistory\(\) \? "" : "disabled"/);
+  assert.match(appSource, /function limitUndoEvents\(events = \[\]\)\s*\{[\s\S]*\.slice\(-UNDO_HISTORY_LIMIT\)/);
+  assert.match(appSource, /state\.practiceEvents = limitUndoEvents\(\[\.\.\.state\.practiceEvents, event\]\)/);
+  assert.match(appSource, /state\.practiceEvents = undoStack\.slice\(0, -1\)/);
+  assert.match(appSource, /spawnRepetitionCountPop\(marker,\s*-last\.delta,\s*app,\s*\{ direction:\s*"down" \}\)/);
+  assert.match(appSource, /undo:\s*`<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"\/><path d="M20 20v-5\.8c0-3\.15-2\.55-5\.7-5\.7-5\.7H4"\/><\/svg>`/);
+  assert.doesNotMatch(styles, /\.undo-btn\s*\{/);
+  assert.match(styles, /\.icon-btn:disabled\s*\{[\s\S]*opacity:\s*\.42/);
+  assert.doesNotMatch(appSource, /undoVisible/);
+  assert.doesNotMatch(styles, /\.floating-undo/);
+});
+
+test("settings icon keeps the old gear outline with mirrored closing curve", () => {
+  assert.match(appSource, /settings:\s*`<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3\.5"\/><path d="M19 14\.5[\s\S]*h-\.4a1\.8 1\.8 0 0 0-1\.7 1\.1Z"\/><\/svg>`/);
+  assert.match(appSource, /V21a2 2 0 1 1-4 0v-\.4/);
+  assert.match(appSource, /H3a2 2 0 1 1 0-4h\.4/);
+  assert.match(appSource, /H21a2 2 0 1 1 0 4h-\.4/);
+  assert.doesNotMatch(appSource, /settings:[\s\S]*M12 2\.8v3M12 18\.2v3/);
+});
+
 test("ayah marker tap feedback is driven by the committed mutation", () => {
   assert.match(appSource, /button\.addEventListener\("pointerup",\s*\(event\) => \{[\s\S]*?handleAyahTap\(button\.dataset\.ayah,\s*button\)/);
   assert.doesNotMatch(appSource, /function handleAyahTap\(key,\s*marker = null\)\s*\{\s*if \(marker\) playAyahTapFeedback\(marker\)/);
@@ -38,6 +61,19 @@ test("page shell pointerup routes non-drag ayah taps to feedback", () => {
 test("ayah count tracking ignores non-primary pointer buttons", () => {
   assert.match(appSource, /button\.addEventListener\("pointerup",\s*\(event\) => \{[\s\S]*?if \(event\.button !== 0\) return;[\s\S]*?handleAyahTap\(button\.dataset\.ayah,\s*button\)/);
   assert.match(appSource, /pageShell\.addEventListener\("pointerdown",\s*\(event\) => \{[\s\S]*?if \(event\.button !== 0\) return;[\s\S]*?swipeStart = \{/);
+});
+
+test("swiping from an ayah marker does not count as a marker tap", () => {
+  const markerBinding = appSource.match(/app\.querySelectorAll\("\.page-slot\.current \.ayah-marker\[data-ayah\], \.page-slot\.current button\.ayah-mark\[data-ayah\]"\)\.forEach\(\(button\) => \{[\s\S]*?\n  \}\);/)?.[0] || "";
+  assert.match(markerBinding, /let markerTapStart = null/);
+  assert.match(markerBinding, /markerTapStart = \{ x: event\.clientX, y: event\.clientY, pointerId: event\.pointerId \}/);
+  assert.match(markerBinding, /Math\.abs\(event\.clientX - markerTapStart\.x\) > SWIPE_DRAG_START/);
+  assert.match(markerBinding, /Math\.abs\(event\.clientY - markerTapStart\.y\) > SWIPE_DRAG_START/);
+  assert.match(markerBinding, /markerTapStart = null;[\s\S]*if \(moved\) return;[\s\S]*clearPageGestureForMarkerTap\(event\.pointerId\);[\s\S]*handleAyahTap\(button\.dataset\.ayah,\s*button\)/);
+  assert.match(markerBinding, /button\.addEventListener\("pointercancel",\s*\(\) => \{[\s\S]*markerTapStart = null/);
+  const markerPointerDown = markerBinding.match(/button\.addEventListener\("pointerdown",\s*\(event\) => \{[\s\S]*?\n    \}\);/)?.[0] || "";
+  assert.doesNotMatch(markerPointerDown, /event\.stopPropagation\(\)/);
+  assert.match(appSource, /function clearPageGestureForMarkerTap\(pointerId\)\s*\{[\s\S]*if \(swipeStart\?\.pointerId !== pointerId\) return;[\s\S]*swipeStart = null;[\s\S]*resetTrackState\(false\);/);
 });
 
 test("long press detail modal cancels active page swipe gesture", () => {
@@ -85,7 +121,7 @@ test("quick ayah taps cancel long press even after page shell captures the point
 test("mobile marker taps suppress native text selection rectangles", () => {
   assert.match(styles, /\.ayah-mark\s*\{[\s\S]*-webkit-user-select:\s*none[\s\S]*-webkit-tap-highlight-color:\s*transparent[\s\S]*-webkit-touch-callout:\s*none/);
   assert.match(styles, /\.ayah-chars\s+\.ayah-marker\.ayah-mark\s*\{[\s\S]*-webkit-tap-highlight-color:\s*transparent[\s\S]*-webkit-touch-callout:\s*none/);
-  assert.match(appSource, /button\.addEventListener\("pointerdown",\s*\(event\) => \{[\s\S]*event\.preventDefault\(\);[\s\S]*event\.stopPropagation\(\);/);
+  assert.match(appSource, /button\.addEventListener\("pointerdown",\s*\(event\) => \{[\s\S]*event\.preventDefault\(\);/);
 });
 
 test("right click ayah number opens the same detail modal as long press", () => {
@@ -119,8 +155,10 @@ test("vertical reader drags scroll the current page instead of turning pages", (
 
 test("ayah feedback animations stay visible in the app preview", () => {
   assert.match(styles, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.pulse[\s\S]*animation-duration:\s*\.42s\s*!important/);
-  assert.match(styles, /\.repetition-count-pop\s*\{[\s\S]*animation:\s*repetition-count-pop 2\.36s/);
+  assert.match(styles, /\.repetition-count-pop\.increase\s*\{[\s\S]*animation:\s*repetition-count-pop 2\.36s/);
+  assert.match(styles, /\.repetition-count-pop\.decrease\s*\{[\s\S]*background:\s*#ffd24c[\s\S]*animation:\s*repetition-count-pop-down 2\.36s/);
   assert.match(styles, /@keyframes repetition-count-pop[\s\S]*7\.6%,\s*50%\s*\{[\s\S]*opacity:\s*1;[\s\S]*translate\(-50%,\s*-78%\) scale\(1\)/);
+  assert.match(styles, /@keyframes repetition-count-pop-down[\s\S]*7\.6%,\s*50%\s*\{[\s\S]*opacity:\s*1;[\s\S]*translate\(-50%,\s*-22%\) scale\(1\)/);
   assert.match(styles, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.repetition-count-pop[\s\S]*animation-duration:\s*2\.36s\s*!important/);
 });
 
@@ -218,9 +256,9 @@ test("home and reader headers share height while home progress avoids horizontal
 });
 
 test("settings modal is full-height with a sticky close header", () => {
-  assert.match(styles, /\.modal-backdrop:has\(\.settings-modal\)\s*\{[\s\S]*padding:\s*0/);
-  assert.match(styles, /\.settings-modal\s*\{[\s\S]*height:\s*100dvh[\s\S]*max-height:\s*100dvh[\s\S]*overflow-y:\s*auto/);
-  assert.match(styles, /\.settings-modal\s+\.modal-head\s*\{[\s\S]*position:\s*sticky[\s\S]*top:\s*0[\s\S]*z-index:\s*2/);
+  assert.match(styles, /\.modal-backdrop:has\(\.settings-modal\)\s*\{[\s\S]*place-items:\s*start center[\s\S]*padding:\s*0/);
+  assert.match(styles, /\.settings-modal\s*\{[\s\S]*height:\s*100dvh[\s\S]*max-height:\s*100dvh[\s\S]*padding-top:\s*0[\s\S]*border-block:\s*0[\s\S]*overflow-y:\s*auto/);
+  assert.match(styles, /\.settings-modal\s+\.modal-head\s*\{[\s\S]*position:\s*sticky[\s\S]*top:\s*0[\s\S]*z-index:\s*2[\s\S]*margin:\s*0 -14px 10px/);
 });
 
 test("transition underline renders as a centered source-ayah cue", () => {

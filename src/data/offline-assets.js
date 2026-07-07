@@ -1,12 +1,13 @@
-export const CACHE_VERSION = "hifz-trackr-v92-ayah-text-focus";
+export const CACHE_VERSION = "hifz-trackr-v101-rounder-undo-icon";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
+  "/version.json",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-07-07-ayah-text-focus",
-  "/src/styles.css?v=2026-07-07-ayah-text-focus"
+  "/src/app.js?v=2026-07-07-rounder-undo-icon",
+  "/src/styles.css?v=2026-07-07-version-subtitle"
 ];
 
 export const DATA_ASSETS = [

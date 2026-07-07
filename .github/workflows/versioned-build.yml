@@ -1,0 +1,40 @@
+name: Versioned build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      APP_BUILD_NUMBER: ${{ github.run_number }}
+      APP_GIT_SHA: ${{ github.sha }}
+      APP_BRANCH: ${{ github.ref_name }}
+      APP_BUILT_AT: ${{ github.event.head_commit.timestamp }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check
+        run: npm run check
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload static app
+        uses: actions/upload-artifact@v4
+        with:
+          name: hifz-trackr-${{ github.run_number }}
+          path: dist

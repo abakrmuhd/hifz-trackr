@@ -59,6 +59,13 @@ import {
 const PAGE_COUNT = 604;
 const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
 const app = document.querySelector("#app");
+const DEFAULT_APP_VERSION = {
+  version: "0.1.0",
+  build: "local",
+  revision: "local",
+  branch: "local",
+  builtAt: null
+};
 const setBootStatus = (label) => {
   if (!app) return;
   app.innerHTML = `
@@ -79,6 +86,7 @@ const defaultThresholds = {
   buildingMax: 19,
   strongMax: 39
 };
+const UNDO_HISTORY_LIMIT = 10;
 
 const defaultState = {
   ayahProgress: {},
@@ -113,7 +121,6 @@ let metadata = null;
 let selectedJuz = 1;
 let animatePageGridOnRender = false;
 let pendingTap = null;
-let undoVisible = false;
 let detailTarget = null;
 let settingsOpen = false;
 let helpOpen = false;
@@ -124,6 +131,7 @@ let bulkFillPicker = null;
 let settingsError = null;
 let hasSeedBackup = false;
 let developerModeTapState = null;
+let appVersion = { ...DEFAULT_APP_VERSION };
 let review = null;
 let swipeStart = null;
 let suppressClickUntil = 0;
@@ -157,7 +165,7 @@ const BULK_FILL_MODE_OPTIONS = [
   { value: "replace", label: "Replace" },
   { value: "increment", label: "Increment" }
 ];
-const BULK_FILL_NOTE = "Use this to fill repetition and transition counts for a range of ayahs after practice done outside the app. Defaults come from the first visible surah on this page, and reversed ayah ranges are normalized automatically.";
+const BULK_FILL_NOTE = "Use this to fill repetition and transition counts for a range of ayahs after practice done without active use of the app.";
 const NUMERIC_SETTING_RULES = {
   doubleTapWindow: { min: 150, max: 600, step: 25, label: "Double tap window" },
   reviewQueueSize: { min: 4, max: 30, step: 1, label: "Review queue size" }
@@ -168,10 +176,10 @@ const icons = {
   previousPage: `<svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>`,
   nextPage: `<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>`,
   help: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.2 2.2 0 0 1 4.3.8c0 1.8-2.1 2-2.1 3.7"/><path d="M12 17h.01"/></svg>`,
-  settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M19 14.5a1.8 1.8 0 0 0 .4 2l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7V21a2 2 0 1 1-4 0v-.4a1.8 1.8 0 0 0-1.1-1.7 1.8 1.8 0 0 0-2 .4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.7-1.1H3a2 2 0 1 1 0-4h.4a1.8 1.8 0 0 0 1.7-1.1 1.8 1.8 0 0 0-.4-2l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.8 1.8 0 0 0 2 .4 1.8 1.8 0 0 0 1.1-1.7V3a2 2 0 1 1 4 0v.4a1.8 1.8 0 0 0 1.1 1.7 1.8 1.8 0 0 0 2-.4l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.7 1.1H21a2 2 0 1 1 0 4h-.4a1.8 1.8 0 0 0-1.6 1Z"/></svg>`,
+  settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M19 14.5a1.8 1.8 0 0 0 .4 2l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7V21a2 2 0 1 1-4 0v-.4a1.8 1.8 0 0 0-1.1-1.7 1.8 1.8 0 0 0-2 .4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.7-1.1H3a2 2 0 1 1 0-4h.4a1.8 1.8 0 0 0 1.7-1.1 1.8 1.8 0 0 0-.4-2l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.8 1.8 0 0 0 2 .4 1.8 1.8 0 0 0 1.1-1.7V3a2 2 0 1 1 4 0v.4a1.8 1.8 0 0 0 1.1 1.7 1.8 1.8 0 0 0 2-.4l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.7 1.1H21a2 2 0 1 1 0 4h-.4a1.8 1.8 0 0 0-1.7 1.1Z"/></svg>`,
   star: `<svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>`,
   search: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
-  undo: `<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>`,
+  undo: `<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M20 20v-5.8c0-3.15-2.55-5.7-5.7-5.7H4"/></svg>`,
   close: `<svg viewBox="0 0 24 24"><path d="m18 6-12 12M6 6l12 12"/></svg>`,
   bookmark: `<svg viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4V4Z"/></svg>`,
   trash: `<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg>`,
@@ -188,10 +196,12 @@ async function init() {
   state.lastRoute = normalizeRouteState(state.lastRoute, state.lastPage);
   setBootStatus("Loading metadata...");
   document.documentElement.dataset.theme = state.settings.theme;
-  const [mushafData, navigationData] = await Promise.all([
+  const [mushafData, navigationData, loadedAppVersion] = await Promise.all([
     fetchJson("/src/data/mushaf-metadata.json"),
-    fetchJson("/src/data/navigation-metadata.json")
+    fetchJson("/src/data/navigation-metadata.json"),
+    loadAppVersion()
   ]);
+  appVersion = loadedAppVersion;
   const initialPage = clampPage(state.lastRoute.page || state.lastPage);
   setBootStatus(`Loading page ${initialPage}...`);
   metadata = {
@@ -220,6 +230,7 @@ async function init() {
 async function loadState() {
   const loaded = await loadPersistedState(defaultState);
   loaded.recentPages = limitRecentPages(loaded.recentPages);
+  loaded.practiceEvents = limitUndoEvents(loaded.practiceEvents);
   loaded.settings.repetitionThresholds = normalizeThresholdProfile(
     loaded.settings.repetitionThresholds,
     defaultState.settings.repetitionThresholds
@@ -282,6 +293,23 @@ async function fetchJson(path) {
   const response = await fetch(path);
   if (!response.ok) throw new Error(`Missing JSON resource ${path}`);
   return response.json();
+}
+
+async function loadAppVersion() {
+  try {
+    const response = await fetch("/version.json", { cache: "no-store" });
+    if (!response.ok) return { ...DEFAULT_APP_VERSION };
+    const data = await response.json();
+    return {
+      version: typeof data.version === "string" && data.version ? data.version : DEFAULT_APP_VERSION.version,
+      build: typeof data.build === "string" && data.build ? data.build : DEFAULT_APP_VERSION.build,
+      revision: typeof data.revision === "string" && data.revision ? data.revision : DEFAULT_APP_VERSION.revision,
+      branch: typeof data.branch === "string" && data.branch ? data.branch : DEFAULT_APP_VERSION.branch,
+      builtAt: typeof data.builtAt === "string" && data.builtAt ? data.builtAt : null
+    };
+  } catch {
+    return { ...DEFAULT_APP_VERSION };
+  }
 }
 
 async function openPage(page, options = {}) {
@@ -487,16 +515,14 @@ function renderReading() {
   const pageNumbers = buildTrackPages({ currentPage: route.page, pageCount: PAGE_COUNT });
   const pageBookmarked = state.pageBookmarks.includes(route.page);
   const activeTarget = resolveReaderTarget();
-  const undoButtonClasses = [
-    "floating-undo",
-    review ? "with-review" : ""
-  ].filter(Boolean).join(" ");
+  const undoDisabled = hasUndoHistory() ? "" : "disabled";
   return `
     <main class="app-shell reader-shell">
       <header class="reading-top">
         <button class="icon-btn" data-action="home" aria-label="Back">${icons.back}</button>
         <div class="reading-meta">${review ? `Review · ${review.index + 1} of ${review.queue.length}` : ""}</div>
         <div class="top-actions">
+          <button class="icon-btn undo-btn" data-action="undo" aria-label="Undo last count" ${undoDisabled}>${icons.undo}</button>
           <button class="icon-btn reader-bulk-fill-btn" data-action="open-bulk-fill" aria-label="Bulk fill counts">+</button>
           <button class="icon-btn ${pageBookmarked ? "active" : ""} bookmark-btn" data-action="toggle-page-bookmark" aria-label="Toggle page bookmark">${icons.bookmark}</button>
           ${renderHelpButton()}
@@ -510,7 +536,6 @@ function renderReading() {
           ${renderPageSlot(trackPages.previous, pageNumbers.previous, "previous", true)}
         </div>
       </section>
-      ${undoVisible ? `<button class="${undoButtonClasses}" data-action="undo" aria-label="Undo last repetition count">${icons.undo}</button>` : ""}
       ${review ? renderReviewBar() : ""}
     </main>
   `;
@@ -992,7 +1017,7 @@ function renderSettings() {
   return `
     <div class="modal-backdrop" data-action="close-settings">
       <section class="modal settings-modal" role="dialog" aria-modal="true" aria-label="Settings">
-        <header class="modal-head"><strong data-dev-mode-trigger>Settings</strong><button class="icon-btn small" data-action="close-settings" aria-label="Close">${icons.close}</button></header>
+        <header class="modal-head"><span class="settings-title"><strong data-dev-mode-trigger>Settings</strong>${renderAppVersionBadge()}</span><button class="icon-btn small" data-action="close-settings" aria-label="Close">${icons.close}</button></header>
         ${settingsError ? `<p class="settings-error" role="alert">${escapeHtml(settingsError)}</p>` : ""}
         <h3 class="label">Storage</h3>
         <div class="setting-row static"><span>Practice events<small>${progressPrompt()}</small></span></div>
@@ -1015,6 +1040,17 @@ function renderSettings() {
   `;
 }
 
+function renderAppVersionBadge() {
+  const buildLabel = appVersion.build && appVersion.build !== "local" ? `+${appVersion.build}` : "";
+  const titleParts = [
+    `Version ${appVersion.version}${buildLabel}`,
+    appVersion.branch && appVersion.branch !== "local" ? `branch ${appVersion.branch}` : "",
+    appVersion.revision && appVersion.revision !== "local" ? `commit ${appVersion.revision.slice(0, 7)}` : ""
+  ].filter(Boolean);
+
+  return `<span class="app-version" title="${escapeHtml(titleParts.join(" | "))}">v${escapeHtml(appVersion.version)}${escapeHtml(buildLabel)}</span>`;
+}
+
 function renderBulkFillModal() {
   if (!bulkFillForm) return "";
   const surahOptions = buildBulkFillSurahOptions();
@@ -1029,7 +1065,7 @@ function renderBulkFillModal() {
           <strong>Fill Repetition & Transition Count</strong>
           <button class="icon-btn small" data-action="close-bulk-fill" aria-label="Close">${icons.close}</button>
         </header>
-        <p class="settings-note">Use this to fill repetition and transition counts for a range of ayahs after practice done outside the app. Defaults come from the first visible surah on this page, and reversed ayah ranges are normalized automatically.</p>
+        <p class="settings-note">${BULK_FILL_NOTE}</p>
         <div class="setting-row bulk-fill-picker-row${bulkFillPicker === "mode" ? " open" : ""}">
           <span>Mode<small>Replace current counts or add on top</small></span>
           <div class="bulk-fill-picker-wrap">
@@ -1129,7 +1165,7 @@ function renderBulkFillPickerMenu({ picker, options }) {
   `;
 }
 
-function renderBulkFillWheel({ key, value, min, max, label }) {
+function renderBulkFillWheel({ key, value, min, max, label, attrs = "" }) {
   const previous = value > min ? value - 1 : "";
   const next = value < max ? value + 1 : "";
   return `
@@ -1138,6 +1174,7 @@ function renderBulkFillWheel({ key, value, min, max, label }) {
       data-bulk-fill-wheel="${key}"
       data-min="${min}"
       data-max="${max}"
+      ${attrs}
       tabindex="0"
       role="spinbutton"
       aria-label="${label}"
@@ -1160,20 +1197,33 @@ function renderThresholdSettings(title, profileKey, profile) {
   return `
     <fieldset class="threshold-group">
       <legend>${title}</legend>
-      <label class="threshold-field">
+      <div class="threshold-field">
         <span>Weak ends</span>
-        <input data-threshold-profile="${profileKey}" data-threshold-key="weakMax" type="number" min="1" max="999" step="1" value="${profile.weakMax}" />
-      </label>
-      <label class="threshold-field">
+        ${renderThresholdWheel({ profileKey, thresholdKey: "weakMax", label: `${title} weak ends` })}
+      </div>
+      <div class="threshold-field">
         <span>Building ends</span>
-        <input data-threshold-profile="${profileKey}" data-threshold-key="buildingMax" type="number" min="2" max="999" step="1" value="${profile.buildingMax}" />
-      </label>
-      <label class="threshold-field">
+        ${renderThresholdWheel({ profileKey, thresholdKey: "buildingMax", label: `${title} building ends` })}
+      </div>
+      <div class="threshold-field">
         <span>Strong ends</span>
-        <input data-threshold-profile="${profileKey}" data-threshold-key="strongMax" type="number" min="3" max="999" step="1" value="${profile.strongMax}" />
-      </label>
+        ${renderThresholdWheel({ profileKey, thresholdKey: "strongMax", label: `${title} strong ends` })}
+      </div>
     </fieldset>
   `;
+}
+
+function renderThresholdWheel({ profileKey, thresholdKey, label }) {
+  const profile = state.settings[profileKey];
+  const { min, max } = getThresholdWheelBounds(profile, thresholdKey);
+  return renderBulkFillWheel({
+    key: `${profileKey}:${thresholdKey}`,
+    value: profile[thresholdKey],
+    min,
+    max,
+    label,
+    attrs: `data-threshold-profile="${profileKey}" data-threshold-key="${thresholdKey}"`
+  });
 }
 
 function bindGlobalEvents() {
@@ -1229,9 +1279,11 @@ function bindScreenEvents() {
     field.addEventListener("input", handler);
     field.addEventListener("change", handler);
   });
-  app.querySelectorAll("[data-bulk-fill-wheel]").forEach((wheel) => bindBulkFillWheel(wheel));
+  app.querySelectorAll("[data-bulk-fill-wheel]:not([data-threshold-profile])").forEach((wheel) => bindBulkFillWheel(wheel));
+  app.querySelectorAll("[data-threshold-profile][data-bulk-fill-wheel]").forEach((wheel) => bindThresholdWheel(wheel));
 
   app.querySelectorAll(".page-slot.current .ayah-marker[data-ayah], .page-slot.current button.ayah-mark[data-ayah]").forEach((button) => {
+    let markerTapStart = null;
     button.addEventListener("click", (event) => {
       if (event.button !== 0) return;
       event.preventDefault();
@@ -1241,14 +1293,26 @@ function bindScreenEvents() {
     });
     button.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
+      markerTapStart = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
       event.preventDefault();
-      event.stopPropagation();
     });
     button.addEventListener("pointerup", (event) => {
       if (event.button !== 0) return;
+      const moved = markerTapStart
+        && event.pointerId === markerTapStart.pointerId
+        && (
+          Math.abs(event.clientX - markerTapStart.x) > SWIPE_DRAG_START
+          || Math.abs(event.clientY - markerTapStart.y) > SWIPE_DRAG_START
+      );
+      markerTapStart = null;
+      if (moved) return;
+      clearPageGestureForMarkerTap(event.pointerId);
       event.preventDefault();
       event.stopPropagation();
       handleAyahTap(button.dataset.ayah, button);
+    });
+    button.addEventListener("pointercancel", () => {
+      markerTapStart = null;
     });
     button.addEventListener("keydown", (event) => {
       if (!["Enter", " "].includes(event.key)) return;
@@ -1805,6 +1869,166 @@ function bindBulkFillWheel(wheel) {
   });
 }
 
+function getThresholdWheelBounds(profile, thresholdKey) {
+  if (thresholdKey === "weakMax") {
+    return { min: 1, max: Math.max(1, profile.buildingMax - 1) };
+  }
+  if (thresholdKey === "buildingMax") {
+    return {
+      min: profile.weakMax + 1,
+      max: Math.max(profile.weakMax + 1, profile.strongMax - 1)
+    };
+  }
+  return { min: profile.buildingMax + 1, max: 999 };
+}
+
+async function stepThresholdField(profileKey, thresholdKey, direction) {
+  if (!["repetitionThresholds", "transitionCountThresholds"].includes(profileKey) || !direction) return;
+  const profile = state.settings[profileKey];
+  if (!profile || !["weakMax", "buildingMax", "strongMax"].includes(thresholdKey)) return;
+
+  const { min, max } = getThresholdWheelBounds(profile, thresholdKey);
+  const nextValue = Math.max(min, Math.min(max, profile[thresholdKey] + direction));
+  if (nextValue === profile[thresholdKey]) {
+    syncThresholdWheel(profileKey, thresholdKey);
+    return;
+  }
+
+  const result = updateThresholdProfile(profile, thresholdKey, String(nextValue));
+  if (result.error) {
+    settingsError = result.error;
+    render();
+    return;
+  }
+
+  state.settings[profileKey] = result.profile;
+  settingsError = null;
+  await saveState();
+  syncThresholdWheel(profileKey, thresholdKey);
+  syncThresholdProfileWheels(profileKey);
+}
+
+function syncThresholdProfileWheels(profileKey) {
+  ["weakMax", "buildingMax", "strongMax"].forEach((thresholdKey) => syncThresholdWheel(profileKey, thresholdKey));
+}
+
+function syncThresholdWheel(profileKey, thresholdKey) {
+  const profile = state.settings[profileKey];
+  const wheel = app.querySelector(`[data-threshold-profile="${profileKey}"][data-threshold-key="${thresholdKey}"]`);
+  if (!profile || !wheel) return;
+
+  const { min, max } = getThresholdWheelBounds(profile, thresholdKey);
+  const value = profile[thresholdKey];
+  const previous = value > min ? value - 1 : "";
+  const next = value < max ? value + 1 : "";
+
+  wheel.dataset.min = String(min);
+  wheel.dataset.max = String(max);
+  wheel.setAttribute("aria-valuemin", String(min));
+  wheel.setAttribute("aria-valuemax", String(max));
+  wheel.setAttribute("aria-valuenow", String(value));
+
+  const previousEl = wheel.querySelector("[data-bulk-fill-previous]");
+  const currentEl = wheel.querySelector("[data-bulk-fill-current]");
+  const nextEl = wheel.querySelector("[data-bulk-fill-next]");
+  if (previousEl) previousEl.textContent = String(previous);
+  if (currentEl) currentEl.textContent = String(value);
+  if (nextEl) nextEl.textContent = String(next);
+  wheel.style.setProperty("--bulk-fill-offset", "0px");
+}
+
+function bindThresholdWheel(wheel) {
+  let pointerY = null;
+  let dragCarry = 0;
+  let dragDistance = 0;
+  let suppressClick = false;
+  const dragStepPx = 18;
+  const clickZoneRatio = 0.34;
+
+  const step = (direction) => {
+    stepThresholdField(wheel.dataset.thresholdProfile, wheel.dataset.thresholdKey, direction);
+  };
+
+  const applyDragOffset = () => {
+    const limitedOffset = Math.max(-dragStepPx, Math.min(dragStepPx, dragCarry));
+    wheel.style.setProperty("--bulk-fill-offset", `${limitedOffset}px`);
+  };
+
+  wheel.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    step(event.deltaY > 0 ? -1 : 1);
+  }, { passive: false });
+
+  wheel.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      step(1);
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      step(-1);
+    }
+  });
+
+  wheel.addEventListener("pointerdown", (event) => {
+    pointerY = event.clientY;
+    dragCarry = 0;
+    dragDistance = 0;
+    suppressClick = false;
+    wheel.classList.add("dragging");
+    applyDragOffset();
+    wheel.setPointerCapture?.(event.pointerId);
+  });
+
+  wheel.addEventListener("pointermove", (event) => {
+    if (pointerY == null) return;
+    const delta = pointerY - event.clientY;
+    dragDistance += Math.abs(delta);
+    if (dragDistance >= 6) suppressClick = true;
+    dragCarry += delta;
+    const steps = dragCarry > 0
+      ? Math.floor(dragCarry / dragStepPx)
+      : Math.ceil(dragCarry / dragStepPx);
+    if (steps) {
+      step(steps);
+      dragCarry -= steps * dragStepPx;
+    }
+    applyDragOffset();
+    pointerY = event.clientY;
+  });
+
+  const finishPointer = (event) => {
+    if (pointerY == null) return;
+    pointerY = null;
+    dragCarry = 0;
+    wheel.classList.remove("dragging");
+    applyDragOffset();
+    if (wheel.hasPointerCapture?.(event.pointerId)) {
+      wheel.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  wheel.addEventListener("pointerup", finishPointer);
+  wheel.addEventListener("pointercancel", finishPointer);
+  wheel.addEventListener("click", (event) => {
+    if (suppressClick) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClick = false;
+      return;
+    }
+    const rect = wheel.getBoundingClientRect();
+    const offsetY = event.clientY - rect.top;
+    if (offsetY <= rect.height * clickZoneRatio) {
+      step(1);
+      return;
+    }
+    if (offsetY >= rect.height * (1 - clickZoneRatio)) {
+      step(-1);
+    }
+  });
+}
+
 function openBulkFill() {
   bulkFillForm = buildBulkFillDefaults(trackPages.current, route.page);
   bulkFillOpen = true;
@@ -1882,7 +2106,6 @@ async function logTransition(key) {
 }
 
 async function postMutationFeedback(key) {
-  undoVisible = true;
   const sourceKey = sourceAyahKeyForMutation(key);
   refreshVisibleAyahMarkerPresentation(sourceKey);
   await saveState();
@@ -2027,11 +2250,11 @@ function playCountIncreaseTone(context, config) {
   }
 }
 
-function spawnRepetitionCountPop(marker, count, container) {
+function spawnRepetitionCountPop(marker, count, container, { direction = "up" } = {}) {
   const rect = getAyahMarkerVisualRect(marker);
   const pop = document.createElement("span");
-  pop.className = "repetition-count-pop";
-  pop.textContent = String(count);
+  pop.className = `repetition-count-pop ${direction === "down" ? "decrease" : "increase"}`;
+  pop.textContent = count > 0 ? `+${count}` : String(count);
   pop.setAttribute("aria-hidden", "true");
   pop.style.left = `${rect.left + rect.width / 2}px`;
   pop.style.top = `${rect.top}px`;
@@ -2044,19 +2267,41 @@ function getAyahMarkerVisualRect(marker) {
 }
 
 function addEvent(type, payload) {
-  state.practiceEvents.push({ id: crypto.randomUUID(), type, timestamp: new Date().toISOString(), ...payload });
+  const event = { id: crypto.randomUUID(), type, timestamp: new Date().toISOString(), ...payload };
+  state.practiceEvents = limitUndoEvents([...state.practiceEvents, event]);
+}
+
+function isUndoableEvent(event) {
+  return Boolean(
+    event
+    && Number.isFinite(event.delta)
+    && event.delta !== 0
+    && (event.ayahKey || event.transitionKey)
+  );
+}
+
+function limitUndoEvents(events = []) {
+  return (Array.isArray(events) ? events : [])
+    .filter(isUndoableEvent)
+    .slice(-UNDO_HISTORY_LIMIT);
+}
+
+function hasUndoHistory() {
+  return limitUndoEvents(state.practiceEvents).length > 0;
 }
 
 async function undoLast() {
-  const last = [...state.practiceEvents].reverse().find((event) => event.delta && !event.undone);
+  const undoStack = limitUndoEvents(state.practiceEvents);
+  const last = undoStack.at(-1);
   if (!last) return;
-  last.undone = true;
+  state.practiceEvents = undoStack.slice(0, -1);
   if (last.ayahKey) state.ayahProgress[last.ayahKey] = { repetitionCount: Math.max(0, getRepetitionCount(last.ayahKey) - last.delta) };
   if (last.transitionKey) state.transitionProgress[last.transitionKey] = { repetitionCount: Math.max(0, getTransitionCount(last.transitionKey) - last.delta) };
-  addEvent("undo", { page: route.page, reversedEventId: last.id, delta: -last.delta, ayahKey: last.ayahKey, transitionKey: last.transitionKey });
-  undoVisible = false;
   await saveState();
   render();
+  const sourceKey = sourceAyahKeyForMutation(last.transitionKey || last.ayahKey);
+  const marker = app.querySelector(`[data-ayah="${CSS.escape(sourceKey)}"]`);
+  if (marker) spawnRepetitionCountPop(marker, -last.delta, app, { direction: "down" });
 }
 
 function mutateDetail(delta) {
@@ -2336,6 +2581,13 @@ function resetTrackState(animateBack = false) {
   applyTrackState();
 }
 
+function clearPageGestureForMarkerTap(pointerId) {
+  if (swipeStart?.pointerId !== pointerId) return;
+  app.querySelector(".page-shell")?.releasePointerCapture?.(pointerId);
+  swipeStart = null;
+  resetTrackState(false);
+}
+
 function cancelPageGesture() {
   const pageShell = app.querySelector(".page-shell");
   if (swipeStart?.pointerId !== undefined) {
@@ -2576,6 +2828,7 @@ async function importJson(file) {
   state = mergeStoredState(defaultState, JSON.parse(await file.text()));
   state.lastPage = clampPage(state.lastPage);
   state.lastRoute = normalizeRouteState(state.lastRoute, state.lastPage);
+  state.practiceEvents = limitUndoEvents(state.practiceEvents);
   hasSeedBackup = false;
   settingsOpen = false;
   await clearSeedBackup();
@@ -2590,6 +2843,7 @@ async function seedTestData() {
   state = buildDeveloperSeedState({ ...cloneValue(defaultState), settings: cloneValue(state.settings) }, metadata);
   state.lastPage = clampPage(state.lastPage);
   state.lastRoute = normalizeRouteState(state.lastRoute, state.lastPage);
+  state.practiceEvents = limitUndoEvents(state.practiceEvents);
   hasSeedBackup = true;
   settingsOpen = false;
   settingsError = null;
@@ -2608,6 +2862,7 @@ async function restoreSeedBackup() {
   state = mergeStoredState(defaultState, backup);
   state.lastPage = clampPage(state.lastPage);
   state.lastRoute = normalizeRouteState(state.lastRoute, state.lastPage);
+  state.practiceEvents = limitUndoEvents(state.practiceEvents);
   hasSeedBackup = false;
   settingsOpen = false;
   settingsError = null;

@@ -31,6 +31,7 @@ const defaultState = {
     theme: "dark",
     sound: false,
     vibration: "auto",
+    developerMode: false,
     reviewQueueSize: 12,
     doubleTapWindow: 250,
     repetitionThresholds: { weakMax: 9, buildingMax: 19, strongMax: 39 },
@@ -53,6 +54,32 @@ test("mergeStoredState preserves nested settings defaults while applying saved v
   assert.equal(merged.settings.repetitionThresholds.weakMax, 4);
   assert.equal(merged.settings.repetitionThresholds.buildingMax, 19);
   assert.equal(merged.settings.transitionCountThresholds.strongMax, 39);
+});
+
+test("mergeStoredState preserves every saved settings value across sessions", () => {
+  const merged = mergeStoredState(defaultState, {
+    settings: {
+      theme: "light",
+      sound: true,
+      vibration: false,
+      developerMode: true,
+      reviewQueueSize: 24,
+      doubleTapWindow: 325,
+      repetitionThresholds: { weakMax: 5, buildingMax: 15, strongMax: 25 },
+      transitionCountThresholds: { weakMax: 2, buildingMax: 6, strongMax: 12 }
+    }
+  });
+
+  assert.deepEqual(merged.settings, {
+    theme: "light",
+    sound: true,
+    vibration: false,
+    developerMode: true,
+    reviewQueueSize: 24,
+    doubleTapWindow: 325,
+    repetitionThresholds: { weakMax: 5, buildingMax: 15, strongMax: 25 },
+    transitionCountThresholds: { weakMax: 2, buildingMax: 6, strongMax: 12 }
+  });
 });
 
 test("mergeStoredState migrates legacy threshold names to count threshold names", () => {

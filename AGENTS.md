@@ -36,6 +36,8 @@ Tests use Node's built-in runner with `node:test` and `assert/strict`. Add or up
 
 The current history uses short, imperative commit messages such as `Add Cloudflare Pages build output` and `Initial tap hifz app`. Keep that style: concise, action-first, and scoped to one change. For pull requests, include a clear summary, note any generated metadata changes, link related issues, and attach screenshots or short screen recordings for UI-affecting work.
 
+Before any push to `main`, update [`version.json`](C:/Users/user/Documents/Business/Quran Memorization/tap_hifz/version.json) and add a matching entry to [`CHANGELOG.md`](C:/Users/user/Documents/Business/Quran Memorization/tap_hifz/CHANGELOG.md). If the build pipeline will stamp runtime fields like build number or revision, still keep the checked-in version file intentionally updated for the release being pushed.
+
 ## Security & Configuration Tips
 
 Do not hand-edit large generated metadata files unless necessary; update the generator script instead. Keep service worker and offline asset changes in sync with `src/data/offline-assets.js` and `sw.js`.
