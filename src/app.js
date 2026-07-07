@@ -699,7 +699,7 @@ function renderPageSlot(pageData, pageNumber, slotName, inert = false, activeTar
         ${renderPageTopChrome(pageNumber)}
         ${renderQcf4Page(qcf4PageData, {
           inert,
-          buildAyahAttrs: () => "",
+          buildAyahAttrs: (key) => buildQcf4AyahGroupAttrs(key, { pageNumber }),
           buildAyahMarkerAttrs: (key) => buildQcf4AyahMarkerAttrs(key, { pageNumber }),
           buildAyahMarkerClass: (key) => buildQcf4AyahMarkerClass(key, activeTarget),
           buildAyahMarkerStyle: (key) => buildQcf4AyahMarkerStyle(key),
@@ -779,6 +779,10 @@ function renderWord(word, activeTarget, options = {}) {
 
 function renderAyahMarkGlyph(value) {
   return `<span class="ayah-mark-glyph"><span class="ayah-mark-glyph-base">${value}</span><span class="ayah-mark-glyph-shine" aria-hidden="true">${value}</span></span>`;
+}
+
+function buildQcf4AyahGroupAttrs(key, { pageNumber }) {
+  return `data-ayah-detail="${escapeHtml(key)}" data-page="${pageNumber}"`;
 }
 
 function buildQcf4AyahMarkerAttrs(key, { pageNumber }) {
@@ -1230,6 +1234,10 @@ function bindScreenEvents() {
       event.stopPropagation();
       openAyahDetail(button);
     });
+  });
+
+  app.querySelectorAll(".page-slot.current .ayah-group[data-ayah-detail]").forEach((group) => {
+    bindLongPress(group, () => openAyahDetail(group));
   });
 
   app.querySelectorAll(".page-slot.current button.transition-mark[data-transition]").forEach((button) => {
@@ -2447,31 +2455,51 @@ function bindLongPress(el, callback) {
   };
   el.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
+    if (event.cancelable) event.preventDefault();
     clear();
     const pointerId = event.pointerId;
+    const startX = event.clientX;
+    const startY = event.clientY;
     const clearMatchingPointer = (nextEvent) => {
       if (nextEvent.pointerId === pointerId) clear();
     };
+    const clearMovedPointer = (nextEvent) => {
+      if (nextEvent.pointerId !== pointerId) return;
+      if (Math.abs(nextEvent.clientX - startX) > SWIPE_DRAG_START || Math.abs(nextEvent.clientY - startY) > SWIPE_DRAG_START) {
+        clear();
+      }
+    };
     cleanupPointerEnd = () => {
+      document.removeEventListener("pointermove", clearMovedPointer, true);
       document.removeEventListener("pointerup", clearMatchingPointer, true);
       document.removeEventListener("pointercancel", clearMatchingPointer, true);
     };
+    document.addEventListener("pointermove", clearMovedPointer, true);
     document.addEventListener("pointerup", clearMatchingPointer, true);
     document.addEventListener("pointercancel", clearMatchingPointer, true);
     timer = setTimeout(() => {
       timer = null;
       cleanupPointerEnd?.();
       cleanupPointerEnd = null;
+      clearTextSelection();
       callback();
+      clearTextSelection();
     }, 520);
   });
+  el.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
   el.addEventListener("pointerleave", clear);
+}
+
+function clearTextSelection() {
+  globalThis.getSelection?.()?.removeAllRanges?.();
 }
 
 function openAyahDetail(button) {
   clearPendingTap();
   cancelPageGesture();
-  detailTarget = { kind: "ayah", key: button.dataset.ayah, page: Number(button.dataset.page) };
+  detailTarget = { kind: "ayah", key: button.dataset.ayah || button.dataset.ayahDetail, page: Number(button.dataset.page) };
   render();
 }
 

@@ -935,6 +935,7 @@ small {
   overscroll-behavior: contain;
   pointer-events: auto;
   scrollbar-width: none;
+  touch-action: pan-y;
   visibility: visible;
 }
 
@@ -1724,6 +1725,8 @@ mushaf-page-inner {
 .detail-modal {
   display: grid;
   gap: 14px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .help-modal {

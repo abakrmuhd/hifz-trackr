@@ -42,6 +42,15 @@ test("long press detail modal cancels active page swipe gesture", () => {
   assert.match(appSource, /function cancelPageGesture\(\)/);
   assert.match(appSource, /bindLongPress\(button,\s*\(\) => openAyahDetail\(button\)\)/);
   assert.match(appSource, /function openAyahDetail\(button\)\s*\{[\s\S]*?clearPendingTap\(\);[\s\S]*?cancelPageGesture\(\);[\s\S]*?detailTarget = \{ kind: "ayah"/);
+  assert.match(appSource, /button\.dataset\.ayah \|\| button\.dataset\.ayahDetail/);
+});
+
+test("long press ayah text opens the same detail modal without making text tappable", () => {
+  const ayahTextBinding = appSource.match(/app\.querySelectorAll\("\.page-slot\.current \.ayah-group\[data-ayah-detail\]"\)\.forEach\(\(group\) => \{[\s\S]*?\n  \}\);/)?.[0] || "";
+  assert.match(appSource, /function buildQcf4AyahGroupAttrs\(key,\s*\{ pageNumber \}\)\s*\{[\s\S]*data-ayah-detail=/);
+  assert.match(appSource, /buildAyahAttrs:\s*\(key\) => buildQcf4AyahGroupAttrs\(key,\s*\{ pageNumber \}\)/);
+  assert.match(ayahTextBinding, /bindLongPress\(group,\s*\(\) => openAyahDetail\(group\)\)/);
+  assert.doesNotMatch(ayahTextBinding, /handleAyahTap/);
 });
 
 test("detail modal exposes increment buttons beside repetition and transition decrements", () => {
@@ -51,9 +60,15 @@ test("detail modal exposes increment buttons beside repetition and transition de
 });
 
 test("quick ayah taps cancel long press even after page shell captures the pointer", () => {
+  assert.match(appSource, /if \(event\.cancelable\) event\.preventDefault\(\)/);
+  assert.match(appSource, /document\.addEventListener\("pointermove",\s*clearMovedPointer,\s*true\)/);
+  assert.match(appSource, /Math\.abs\(nextEvent\.clientX - startX\) > SWIPE_DRAG_START/);
   assert.match(appSource, /function bindLongPress\(el,\s*callback\)\s*\{[\s\S]*?document\.addEventListener\("pointerup",\s*clearMatchingPointer,\s*true\)/);
   assert.match(appSource, /function bindLongPress\(el,\s*callback\)\s*\{[\s\S]*?if \(nextEvent\.pointerId === pointerId\) clear\(\);/);
   assert.match(appSource, /function bindLongPress\(el,\s*callback\)\s*\{[\s\S]*?document\.removeEventListener\("pointerup",\s*clearMatchingPointer,\s*true\)/);
+  assert.match(appSource, /el\.addEventListener\("contextmenu",\s*\(event\) => \{[\s\S]*event\.preventDefault\(\)/);
+  assert.match(appSource, /clearTextSelection\(\);[\s\S]*callback\(\);[\s\S]*clearTextSelection\(\)/);
+  assert.match(styles, /\.detail-modal\s*\{[\s\S]*user-select:\s*none[\s\S]*-webkit-user-select:\s*none/);
 });
 
 test("right click ayah number opens the same detail modal as long press", () => {
@@ -80,6 +95,7 @@ test("vertical reader drags scroll the current page instead of turning pages", (
   assert.match(appSource, /axis === "horizontal" && trackState\.direction && shouldCommitTrackMove/);
   assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*overflow-y:\s*auto/);
   assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*overscroll-behavior:\s*contain/);
+  assert.match(styles, /\.page-slot\.current\s*\{[\s\S]*touch-action:\s*pan-y/);
   assert.match(styles, /\.page-slot\.current::-webkit-scrollbar\s*\{[\s\S]*display:\s*none/);
 });
 

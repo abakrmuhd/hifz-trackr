@@ -1,12 +1,12 @@
-export const CACHE_VERSION = "hifz-trackr-v89-stable-side-qcf4";
+export const CACHE_VERSION = "hifz-trackr-v91-mobile-touch-fixes";
 
 export const SHELL_ASSETS = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon.svg",
-  "/src/app.js?v=2026-07-07-stable-side-qcf4",
-  "/src/styles.css?v=2026-07-07-stable-side-qcf4"
+  "/src/app.js?v=2026-07-07-mobile-touch-fixes",
+  "/src/styles.css?v=2026-07-07-mobile-touch-fixes"
 ];
 
 export const DATA_ASSETS = [
